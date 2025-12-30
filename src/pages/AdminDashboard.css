@@ -1,0 +1,18 @@
+.admin-dashboard {
+  padding: var(--spacing-3xl) 0;
+}
+
+.dashboard-header {
+  margin-bottom: var(--spacing-4xl);
+}
+
+.dashboard-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4xl);
+}
+
+.dashboard-section {
+  width: 100%;
+}
+
