@@ -4,14 +4,16 @@
 
 .trend-content {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xl);
+  flex-direction: row;
+  gap: var(--spacing-lg);
+  align-items: flex-start;
 }
 
 .trend-summary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: var(--spacing-md);
+  flex: 0 0 320px;
 }
 
 .summary-card {
@@ -56,16 +58,29 @@
 }
 
 .trend-chart-container {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: var(--spacing-md);
   background-color: var(--bg-primary);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
 }
 
+@media (max-width: 1024px) {
+  .trend-content {
+    flex-direction: column;
+  }
+
+  .trend-summary {
+    flex: 1;
+    width: 100%;
+  }
+}
+
 @media (max-width: 768px) {
   .trend-summary {
-    grid-template-columns: 1fr;
+    flex: 1;
+    width: 100%;
   }
 }
 
