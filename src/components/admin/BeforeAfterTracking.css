@@ -3,13 +3,13 @@
 }
 
 .tracking-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3xl);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: var(--spacing-lg);
 }
 
 .tracking-item {
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   background-color: var(--bg-primary);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
@@ -19,8 +19,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
   flex-wrap: wrap;
 }
 
@@ -67,7 +67,7 @@
 
 .tracking-chart {
   width: 100%;
-  margin: var(--spacing-lg) 0;
+  margin: var(--spacing-md) 0;
 }
 
 .tracking-legend {
@@ -96,6 +96,12 @@
 
 .legend-line.after {
   background-color: var(--chateau-green-600);
+}
+
+@media (max-width: 1024px) {
+  .tracking-list {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
