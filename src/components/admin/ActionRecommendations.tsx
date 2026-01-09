@@ -1,12 +1,18 @@
+import { useState, useEffect } from 'react'
+import { apiClient } from '../../utils/api'
 import './ActionRecommendations.css'
 
 interface Recommendation {
   id: string
   location: string
+  title?: string // 가이드라인: title 필드
   interventionType: string
   description: string
   expectedImpact: string
   urgency: 'immediate' | 'short-term' | 'medium-term'
+  confidence?: number // 가이드라인: confidence 필드
+  limitations?: string[] // 가이드라인: limitations 필드
+  recommendedActions?: string[] // 가이드라인: recommended_actions 배열 전체
   estimatedCost?: string
   similarCases?: number
   costEffectiveness?: {
@@ -27,91 +33,106 @@ interface Recommendation {
   }
 }
 
-const mockRecommendations: Recommendation[] = [
-  {
-    id: '1',
-    location: '서울시 강남구 역삼동 123-45',
-    interventionType: '구조적 개선',
-    description:
-      '골목 구조 개선 및 환기 시스템 설치를 통한 근본적 환경 개선이 필요합니다. 좁은 골목 구조로 인한 공기 순환 문제가 주요 원인으로 분석됩니다.',
-    expectedImpact: '편의성 지수 30점 이상 향상 예상',
-    urgency: 'immediate',
-    estimatedCost: '약 5,000만원',
-    similarCases: 12,
-    costEffectiveness: {
-      roi: 185,
-      expectedComplaintReduction: 75,
-      expectedIndexImprovement: 30,
-      paybackPeriod: '약 8개월'
-    },
-    timePattern: {
-      recommendedHours: [20, 21, 22, 23],
-      recommendedDays: ['월', '화', '수', '목', '금']
-    },
-    relatedSignals: {
-      human: true,
-      geo: true,
-      population: true,
-      pigeon: true
-    }
-  },
-  {
-    id: '2',
-    location: '서울시 마포구 상암동 67-89',
-    interventionType: '정기 관리 강화',
-    description:
-      '현재 구조는 양호하나 정기적인 청소 및 관리 주기를 단축하여 재발을 방지할 수 있습니다. 주민 인식 개선 캠페인 병행 권장.',
-    expectedImpact: '편의성 지수 15점 이상 향상 예상',
-    urgency: 'short-term',
-    estimatedCost: '약 500만원',
-    similarCases: 8,
-    costEffectiveness: {
-      roi: 240,
-      expectedComplaintReduction: 60,
-      expectedIndexImprovement: 15,
-      paybackPeriod: '약 3개월'
-    },
-    timePattern: {
-      recommendedHours: [19, 20, 21],
-      recommendedDays: ['월', '화', '수', '목', '금']
-    },
-    relatedSignals: {
-      human: true,
-      geo: false,
-      population: true,
-      pigeon: false
-    }
-  },
-  {
-    id: '3',
-    location: '서울시 종로구 명륜동 12-34',
-    interventionType: '모니터링 강화',
-    description:
-      '현재 상태는 안정적이나 지속적인 모니터링을 통해 악화 징후를 조기에 감지하는 것이 중요합니다. 추가 개입은 불필요해 보입니다.',
-    expectedImpact: '현 상태 유지 및 예방적 관리',
-    urgency: 'medium-term',
-    estimatedCost: '약 100만원',
-    similarCases: 5,
-    costEffectiveness: {
-      roi: 150,
-      expectedComplaintReduction: 30,
-      expectedIndexImprovement: 5,
-      paybackPeriod: '약 6개월'
-    },
-    timePattern: {
-      recommendedHours: [14, 15, 16],
-      recommendedDays: ['월', '화', '수', '목', '금']
-    },
-    relatedSignals: {
-      human: true,
-      geo: false,
-      population: false,
-      pigeon: true
-    }
-  }
-]
-
 const ActionRecommendations = () => {
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchActionCards = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const today = new Date().toISOString().split('T')[0]
+        const response = await apiClient.getActionCards({ date: today })
+        
+        console.log('💡 ActionRecommendations 응답:', response)
+        
+        // 응답 구조에 따라 유연하게 처리
+        let dataArray: any[] = []
+        if (Array.isArray(response)) {
+          dataArray = response
+        } else if (response && Array.isArray(response.data)) {
+          dataArray = response.data
+        } else if (response && response.success && Array.isArray(response.data)) {
+          dataArray = response.data
+        }
+        
+        // 응답 데이터를 Recommendation 형식으로 변환
+        // 가이드라인 응답 형식: [{card_id, unit_id, date, title, why, recommended_actions, tags, confidence, limitations}]
+        const formatted = dataArray.map((item: any) => ({
+          id: item.card_id || item.unit_id || '',
+          location: item.unit_id || '',
+          title: item.title || '', // 가이드라인: title 필드 사용
+          interventionType: item.recommended_actions?.[0] || '개입 필요',
+          description: item.why || '',
+          expectedImpact: '개선 예상',
+          urgency: item.confidence > 0.7 ? 'immediate' : item.confidence > 0.5 ? 'short-term' : 'medium-term',
+          confidence: item.confidence, // 가이드라인: confidence 필드
+          limitations: item.limitations || [], // 가이드라인: limitations 필드
+          recommendedActions: item.recommended_actions || [], // 가이드라인: recommended_actions 배열 전체
+          similarCases: undefined,
+          costEffectiveness: undefined,
+          timePattern: undefined,
+          relatedSignals: {
+            human: item.tags?.includes('odor') || item.tags?.includes('trash'),
+            geo: false,
+            population: item.tags?.includes('night_spike'),
+            pigeon: false
+          }
+        }))
+        setRecommendations(formatted)
+        if (formatted.length === 0) {
+          console.log('ℹ️ ActionRecommendations: 데이터가 없습니다. 백엔드에 해당 날짜의 액션 카드가 없을 수 있습니다.')
+        }
+      } catch (err) {
+        console.error('개입 권고사항 데이터 로드 실패:', err)
+        setError('데이터를 불러오는 중 오류가 발생했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchActionCards()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="action-recommendations">
+        <div className="section-header">
+          <h2 className="heading-2">개입 권고사항</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="action-recommendations">
+        <div className="section-header">
+          <h2 className="heading-2">개입 권고사항</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          {error}
+        </div>
+      </div>
+    )
+  }
+
+  if (recommendations.length === 0) {
+    return (
+      <div className="action-recommendations">
+        <div className="section-header">
+          <h2 className="heading-2">개입 권고사항</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          데이터가 없습니다.
+        </div>
+      </div>
+    )
+  }
+
   const getUrgencyLabel = (urgency: string) => {
     switch (urgency) {
       case 'immediate':
@@ -148,7 +169,7 @@ const ActionRecommendations = () => {
       </div>
 
       <div className="recommendations-grid">
-        {mockRecommendations.map((rec) => (
+        {recommendations.map((rec) => (
           <div key={rec.id} className="recommendation-card">
             <div className="recommendation-header">
               <div className="recommendation-meta">
@@ -158,7 +179,11 @@ const ActionRecommendations = () => {
                 >
                   {getUrgencyLabel(rec.urgency)}
                 </span>
-                <span className="intervention-type">{rec.interventionType}</span>
+                {rec.confidence && (
+                  <span className="confidence-badge" style={{ fontSize: '12px', color: 'var(--gray-600)' }}>
+                    신뢰도: {(rec.confidence * 100).toFixed(0)}%
+                  </span>
+                )}
               </div>
               {rec.similarCases && (
                 <span className="similar-cases">
@@ -167,9 +192,31 @@ const ActionRecommendations = () => {
               )}
             </div>
 
-            <h3 className="recommendation-location">{rec.location}</h3>
+            <h3 className="recommendation-location">{rec.title || rec.location}</h3>
 
             <p className="recommendation-description">{rec.description}</p>
+
+            {rec.recommendedActions && rec.recommendedActions.length > 0 && (
+              <div className="recommended-actions-list">
+                <strong>권고 조치:</strong>
+                <ul>
+                  {rec.recommendedActions.map((action: string, idx: number) => (
+                    <li key={idx}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {rec.limitations && rec.limitations.length > 0 && (
+              <div className="limitations-list">
+                <strong>제한사항:</strong>
+                <ul>
+                  {rec.limitations.map((limitation: string, idx: number) => (
+                    <li key={idx}>{limitation}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             <div className="recommendation-footer">
               <div className="impact-indicator">

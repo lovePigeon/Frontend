@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { apiClient } from '../../utils/api'
 import './TrendIndicators.css'
 
 interface TrendData {
@@ -7,19 +9,71 @@ interface TrendData {
   improvement: number
 }
 
-const mockTrendData: TrendData[] = [
-  { period: '2023 Q1', citywide: 52, improvement: 0 },
-  { period: '2023 Q2', citywide: 55, improvement: 3 },
-  { period: '2023 Q3', citywide: 58, improvement: 3 },
-  { period: '2023 Q4', citywide: 61, improvement: 3 },
-  { period: '2024 Q1', citywide: 64, improvement: 3 }
-]
-
 const TrendIndicators = () => {
-  const currentIndex = mockTrendData[mockTrendData.length - 1].citywide
-  const previousIndex = mockTrendData[mockTrendData.length - 2].citywide
+  const [trendData, setTrendData] = useState<TrendData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchTrends = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await apiClient.getDashboardTrends({ period: 'quarter' })
+        
+        console.log('📊 TrendIndicators 응답:', response)
+        
+        // 응답 구조에 따라 유연하게 처리
+        if (response && response.data && Array.isArray(response.data)) {
+          setTrendData(response.data)
+        } else if (Array.isArray(response)) {
+          // 응답이 배열로 직접 올 경우
+          setTrendData(response)
+        } else if (response && response.success && response.data && Array.isArray(response.data)) {
+          setTrendData(response.data)
+        } else {
+          console.warn('⚠️ TrendIndicators: 예상하지 못한 응답 구조:', response)
+          setError('데이터를 불러올 수 없습니다.')
+        }
+      } catch (err) {
+        console.error('❌ 추세 데이터 로드 실패:', err)
+        setError('데이터를 불러오는 중 오류가 발생했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTrends()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="trend-indicators">
+        <div className="section-header">
+          <h2 className="heading-2">전체 추세 지표</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (error || trendData.length === 0) {
+    return (
+      <div className="trend-indicators">
+        <div className="section-header">
+          <h2 className="heading-2">전체 추세 지표</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          {error || '데이터가 없습니다.'}
+        </div>
+      </div>
+    )
+  }
+
+  const currentIndex = trendData[trendData.length - 1].citywide
+  const previousIndex = trendData.length > 1 ? trendData[trendData.length - 2].citywide : currentIndex
   const change = currentIndex - previousIndex
-  const changePercent = ((change / previousIndex) * 100).toFixed(1)
+  const changePercent = previousIndex > 0 ? ((change / previousIndex) * 100).toFixed(1) : '0'
 
   return (
     <div className="trend-indicators">
@@ -50,7 +104,7 @@ const TrendIndicators = () => {
 
         <div className="trend-chart-container">
           <ResponsiveContainer width="100%" height={400}>
-            <AreaChart data={mockTrendData}>
+            <AreaChart data={trendData}>
               <defs>
                 <linearGradient id="colorCitywide" x1="0" y1="0" x2="0" y2="1">
                   <stop

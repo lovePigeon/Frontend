@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { apiClient } from '../../utils/api'
 import './TimePatternAnalysis.css'
 
 interface TimePatternData {
@@ -9,48 +11,114 @@ interface TimePatternData {
   recommendedAction: string
 }
 
-const mockTimePatternData: TimePatternData[] = [
-  {
-    location: '서울시 강남구 역삼동 123-45',
-    hourPattern: Array.from({ length: 24 }, (_, i) => ({
-      hour: i,
-      complaints: i >= 20 && i <= 23 ? Math.floor(Math.random() * 8) + 5 : Math.floor(Math.random() * 3),
-      population: i >= 20 && i <= 23 ? Math.floor(Math.random() * 200) + 800 : Math.floor(Math.random() * 100) + 200
-    })),
-    dayPattern: [
-      { day: '월', complaints: 3 },
-      { day: '화', complaints: 4 },
-      { day: '수', complaints: 5 },
-      { day: '목', complaints: 4 },
-      { day: '금', complaints: 3 },
-      { day: '토', complaints: 2 },
-      { day: '일', complaints: 3 }
-    ],
-    peakHours: [20, 21, 22, 23],
-    recommendedAction: '야간 집중 관리 필요 (20-23시)'
-  },
-  {
-    location: '서울시 마포구 상암동 67-89',
-    hourPattern: Array.from({ length: 24 }, (_, i) => ({
-      hour: i,
-      complaints: i >= 19 && i <= 21 ? Math.floor(Math.random() * 6) + 3 : Math.floor(Math.random() * 2),
-      population: i >= 19 && i <= 21 ? Math.floor(Math.random() * 150) + 600 : Math.floor(Math.random() * 80) + 150
-    })),
-    dayPattern: [
-      { day: '월', complaints: 2 },
-      { day: '화', complaints: 3 },
-      { day: '수', complaints: 3 },
-      { day: '목', complaints: 3 },
-      { day: '금', complaints: 2 },
-      { day: '토', complaints: 2 },
-      { day: '일', complaints: 3 }
-    ],
-    peakHours: [19, 20, 21],
-    recommendedAction: '저녁 시간대 관리 강화 (19-21시)'
-  }
-]
-
 const TimePatternAnalysis = () => {
+  const [timePatternData, setTimePatternData] = useState<TimePatternData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedUnitId, setSelectedUnitId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchTimePattern = async () => {
+      if (!selectedUnitId) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+        const today = new Date().toISOString().split('T')[0]
+        const response = await apiClient.getTimePattern(selectedUnitId, { date: today, period: 'week' })
+        
+        console.log('⏰ TimePatternAnalysis 응답:', response)
+        
+        if (response && (response.success || response.location)) {
+          // 응답 데이터를 TimePatternData 형식으로 변환
+          const formatted: TimePatternData = {
+            location: response.location || '',
+            hourPattern: response.hour_pattern || [],
+            dayPattern: response.day_pattern || [],
+            peakHours: response.peak_hours || [],
+            recommendedAction: response.recommended_action || ''
+          }
+          setTimePatternData([formatted])
+        } else {
+          setError('데이터를 불러올 수 없습니다.')
+        }
+      } catch (err) {
+        console.error('시간대별 패턴 데이터 로드 실패:', err)
+        setError('데이터를 불러오는 중 오류가 발생했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTimePattern()
+  }, [selectedUnitId])
+
+  // TODO: unit_id 선택 UI 추가 필요
+  // 임시로 첫 번째 우선순위 대기열 항목을 사용
+  // PriorityQueue 컴포넌트에서 이미 로드한 데이터를 공유하는 것이 더 효율적
+  // 현재는 unit_id를 props로 받거나 다른 방식으로 처리 필요
+  useEffect(() => {
+    let mounted = true
+    const fetchFirstUnitId = async () => {
+      if (selectedUnitId) return // 이미 unit_id가 있으면 중복 호출 방지
+      
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        const response = await apiClient.getPriorityQueue({ date: today, top_n: 1 })
+        if (mounted && Array.isArray(response) && response.length > 0) {
+          setSelectedUnitId(response[0].unit_id)
+        }
+      } catch (err) {
+        console.error('unit_id 로드 실패:', err)
+      }
+    }
+    fetchFirstUnitId()
+    
+    return () => {
+      mounted = false
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (loading) {
+    return (
+      <div className="time-pattern-analysis">
+        <div className="section-header">
+          <h2 className="heading-2">시간대별 패턴 분석</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="time-pattern-analysis">
+        <div className="section-header">
+          <h2 className="heading-2">시간대별 패턴 분석</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          {error}
+        </div>
+      </div>
+    )
+  }
+
+  if (timePatternData.length === 0) {
+    return (
+      <div className="time-pattern-analysis">
+        <div className="section-header">
+          <h2 className="heading-2">시간대별 패턴 분석</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          지역을 선택해주세요.
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="time-pattern-analysis">
       <div className="section-header">
@@ -61,7 +129,7 @@ const TimePatternAnalysis = () => {
       </div>
 
       <div className="pattern-list">
-        {mockTimePatternData.map((data, index) => (
+        {timePatternData.map((data, index) => (
           <div key={index} className="pattern-item">
             <div className="pattern-header">
               <h3 className="heading-4">{data.location}</h3>

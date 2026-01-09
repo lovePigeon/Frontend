@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import LocationMap from './LocationMap'
+import { apiClient } from '../../utils/api'
 import './BlindSpotDetection.css'
 
 interface BlindSpot {
@@ -11,61 +13,70 @@ interface BlindSpot {
   signals: {
     human: { value: number; status: 'low' | 'normal' | 'high' }
     geo: { value: number; status: 'low' | 'normal' | 'high' }
-    population: { value: number; status: 'low' | 'normal' | 'high' }
+    uci?: { value: number; status: 'low' | 'normal' | 'high' } // 가이드라인: uci 필드
+    population?: { value: number; status: 'low' | 'normal' | 'high' }
     pigeon?: { detected: boolean; intensity: 'high' | 'medium' | 'low' | null }
   }
   recommendedAction: string
 }
 
-const mockBlindSpots: BlindSpot[] = [
-  {
-    id: 'bs1',
-    location: '서울시 강남구 논현동 78-90',
-    lat: 37.5120,
-    lng: 127.0280,
-    riskLevel: 'high',
-    detectionReason: '민원은 적으나 비둘기 활동이 급증하여 사각지대 가능성',
-    signals: {
-      human: { value: 3, status: 'low' },
-      geo: { value: 6.5, status: 'normal' },
-      population: { value: 450, status: 'normal' },
-      pigeon: { detected: true, intensity: 'high' }
-    },
-    recommendedAction: '현장 점검 및 추가 모니터링 필요'
-  },
-  {
-    id: 'bs2',
-    location: '서울시 마포구 합정동 12-34',
-    lat: 37.5495,
-    lng: 126.9139,
-    riskLevel: 'medium',
-    detectionReason: '구조는 취약하나 신호가 약함 - 우선순위 재검토 필요',
-    signals: {
-      human: { value: 2, status: 'low' },
-      geo: { value: 8.2, status: 'high' },
-      population: { value: 380, status: 'low' },
-      pigeon: { detected: false, intensity: null }
-    },
-    recommendedAction: '구조 취약성과 신호 불일치 원인 분석 필요'
-  },
-  {
-    id: 'bs3',
-    location: '서울시 종로구 혜화동 56-78',
-    lat: 37.5860,
-    lng: 127.0015,
-    riskLevel: 'low',
-    detectionReason: '모든 신호가 일치하나 비둘기 신호만 약함',
-    signals: {
-      human: { value: 8, status: 'normal' },
-      geo: { value: 4.5, status: 'normal' },
-      population: { value: 520, status: 'normal' },
-      pigeon: { detected: true, intensity: 'low' }
-    },
-    recommendedAction: '지속 모니터링 권장'
-  }
-]
-
 const BlindSpotDetection = () => {
+  const [blindSpots, setBlindSpots] = useState<BlindSpot[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchBlindSpots = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const today = new Date().toISOString().split('T')[0]
+        const response = await apiClient.getBlindSpots({ date: today })
+        
+        console.log('🔍 BlindSpotDetection 응답:', response)
+        
+        // 응답 구조에 따라 유연하게 처리
+        let dataArray: any[] = []
+        if (Array.isArray(response)) {
+          dataArray = response
+        } else if (response && Array.isArray(response.data)) {
+          dataArray = response.data
+        } else if (response && response.success && Array.isArray(response.data)) {
+          dataArray = response.data
+        }
+        
+        // 응답 데이터를 BlindSpot 형식으로 변환
+        // 가이드라인 응답 형식: {id, location, lat, lng, risk_level, detection_reason, signals: {human, geo, uci}, recommended_action}
+        const formatted = dataArray.map((item: any) => ({
+          id: item.id || `bs-${item.location}`,
+          location: item.location || '',
+          lat: item.lat || 37.5665,
+          lng: item.lng || 126.9780,
+          riskLevel: item.risk_level || 'medium',
+          detectionReason: item.detection_reason || '',
+          signals: {
+            human: item.signals?.human || { value: 0, status: 'normal' },
+            geo: item.signals?.geo || { value: 0, status: 'normal' },
+            uci: item.signals?.uci || undefined, // 가이드라인: uci 필드
+            population: item.signals?.population || undefined,
+            pigeon: item.signals?.pigeon || undefined
+          },
+          recommendedAction: item.recommended_action || ''
+        }))
+        setBlindSpots(formatted)
+        if (formatted.length === 0) {
+          console.log('ℹ️ BlindSpotDetection: 데이터가 없습니다. 백엔드에 해당 날짜의 사각지대 데이터가 없을 수 있습니다.')
+        }
+      } catch (err) {
+        console.error('사각지대 탐지 데이터 로드 실패:', err)
+        setError('데이터를 불러오는 중 오류가 발생했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchBlindSpots()
+  }, [])
   const getRiskLabel = (risk: string) => {
     switch (risk) {
       case 'high':
@@ -105,7 +116,44 @@ const BlindSpotDetection = () => {
     }
   }
 
-  const mapLocations = mockBlindSpots.map((spot) => ({
+  if (loading) {
+    return (
+      <div className="blindspot-detection">
+        <div className="section-header">
+          <h2 className="heading-2">사각지대 탐지</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="blindspot-detection">
+        <div className="section-header">
+          <h2 className="heading-2">사각지대 탐지</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          {error}
+        </div>
+      </div>
+    )
+  }
+
+  if (blindSpots.length === 0) {
+    return (
+      <div className="blindspot-detection">
+        <div className="section-header">
+          <h2 className="heading-2">사각지대 탐지</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          데이터가 없습니다.
+        </div>
+      </div>
+    )
+  }
+
+  const mapLocations = blindSpots.map((spot) => ({
     id: spot.id,
     location: spot.location,
     lat: spot.lat,
@@ -132,7 +180,7 @@ const BlindSpotDetection = () => {
       </div>
 
       <div className="blindspot-list">
-        {mockBlindSpots.map((spot) => (
+        {blindSpots.map((spot) => (
           <div key={spot.id} className="blindspot-item">
             <div className="blindspot-header">
               <div>
@@ -181,18 +229,35 @@ const BlindSpotDetection = () => {
                   </div>
                 </div>
 
-                <div className="signal-card">
-                  <span className="signal-name">Population-signal</span>
-                  <div className="signal-value-container">
-                    <span 
-                      className="signal-value"
-                      style={{ color: getSignalStatusColor(spot.signals.population.status) }}
-                    >
-                      {spot.signals.population.value}
-                    </span>
-                    <span className="signal-status">{spot.signals.population.status === 'low' ? '낮음' : spot.signals.population.status === 'normal' ? '보통' : '높음'}</span>
+                {spot.signals.uci && (
+                  <div className="signal-card">
+                    <span className="signal-name">UCI-signal</span>
+                    <div className="signal-value-container">
+                      <span 
+                        className="signal-value"
+                        style={{ color: getSignalStatusColor(spot.signals.uci.status) }}
+                      >
+                        {spot.signals.uci.value}
+                      </span>
+                      <span className="signal-status">{spot.signals.uci.status === 'low' ? '낮음' : spot.signals.uci.status === 'normal' ? '보통' : '높음'}</span>
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {spot.signals.population && (
+                  <div className="signal-card">
+                    <span className="signal-name">Population-signal</span>
+                    <div className="signal-value-container">
+                      <span 
+                        className="signal-value"
+                        style={{ color: getSignalStatusColor(spot.signals.population.status) }}
+                      >
+                        {spot.signals.population.value}
+                      </span>
+                      <span className="signal-status">{spot.signals.population.status === 'low' ? '낮음' : spot.signals.population.status === 'normal' ? '보통' : '높음'}</span>
+                    </div>
+                  </div>
+                )}
 
                 {spot.signals.pigeon && (
                   <div className="signal-card pigeon-signal">

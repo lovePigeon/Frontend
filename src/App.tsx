@@ -4,6 +4,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import PublicView from './pages/PublicView'
 
 function App() {
+
   return (
     <BrowserRouter>
       <Routes>

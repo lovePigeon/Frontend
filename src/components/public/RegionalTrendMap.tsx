@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import mapboxgl from 'mapbox-gl'
 import 'mapbox-gl/dist/mapbox-gl.css'
+import { apiClient } from '../../utils/api'
 import './RegionalTrendMap.css'
 
 interface RegionalTrend {
@@ -11,14 +12,52 @@ interface RegionalTrend {
   index: number
 }
 
-interface RegionalTrendMapProps {
-  trends: RegionalTrend[]
-}
-
-const RegionalTrendMap = ({ trends }: RegionalTrendMapProps) => {
+const RegionalTrendMap = () => {
+  const [trends, setTrends] = useState<RegionalTrend[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<mapboxgl.Map | null>(null)
   const markersRef = useRef<mapboxgl.Marker[]>([])
+
+  useEffect(() => {
+    const fetchRegionalTrends = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const today = new Date().toISOString().split('T')[0]
+        const response = await apiClient.getRegionalTrends({ date: today })
+        
+        console.log('🗺️ RegionalTrendMap 응답:', response)
+        
+        // 응답 구조에 따라 유연하게 처리
+        let dataArray: any[] = []
+        if (response && response.data && Array.isArray(response.data)) {
+          dataArray = response.data
+        } else if (Array.isArray(response)) {
+          dataArray = response
+        } else if (response && response.success && response.data && Array.isArray(response.data)) {
+          dataArray = response.data
+        } else {
+          console.warn('⚠️ RegionalTrendMap: 예상하지 못한 응답 구조:', response)
+          setError('데이터를 불러올 수 없습니다.')
+          return
+        }
+        
+        setTrends(dataArray)
+        if (dataArray.length === 0) {
+          console.log('ℹ️ RegionalTrendMap: 데이터가 없습니다. 백엔드에 해당 날짜의 데이터가 없을 수 있습니다.')
+        }
+      } catch (err) {
+        console.error('❌ 지역별 현황 데이터 로드 실패:', err)
+        setError('데이터를 불러오는 중 오류가 발생했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRegionalTrends()
+  }, [])
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return
@@ -117,6 +156,24 @@ const RegionalTrendMap = ({ trends }: RegionalTrendMapProps) => {
       })
     }
   }, [trends])
+
+  if (loading) {
+    return (
+      <div className="regional-trend-map-container">
+        <div style={{ padding: '40px', textAlign: 'center' }}>로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="regional-trend-map-container">
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          {error}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="regional-trend-map-container">

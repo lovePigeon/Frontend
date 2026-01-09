@@ -223,3 +223,4 @@ const IndexCalculationModal = ({ item, onClose }: IndexCalculationModalProps) =>
 
 export default IndexCalculationModal
 
+

@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { apiClient } from '../../utils/api'
 import './BeforeAfterTracking.css'
 
 interface TrackingData {
@@ -10,58 +12,124 @@ interface TrackingData {
   improvement: number
 }
 
-const mockTrackingData: TrackingData[] = [
-  {
-    location: '서울시 강남구 논현동 45-67',
-    interventionDate: '2024-01-10',
-    interventionType: '구조적 개선',
-    beforeData: [
-      { date: '2023-11', index: 35 },
-      { date: '2023-12', index: 32 },
-      { date: '2024-01', index: 30 }
-    ],
-    afterData: [
-      { date: '2024-01', index: 30 },
-      { date: '2024-02', index: 58 },
-      { date: '2024-03', index: 65 }
-    ],
-    improvement: 35
-  },
-  {
-    location: '서울시 서초구 반포동 12-34',
-    interventionDate: '2023-12-15',
-    interventionType: '정기 관리 강화',
-    beforeData: [
-      { date: '2023-10', index: 48 },
-      { date: '2023-11', index: 45 },
-      { date: '2023-12', index: 42 }
-    ],
-    afterData: [
-      { date: '2023-12', index: 42 },
-      { date: '2024-01', index: 55 },
-      { date: '2024-02', index: 62 }
-    ],
-    improvement: 20
-  },
-  {
-    location: '서울시 용산구 이태원동 78-90',
-    interventionDate: '2023-11-20',
-    interventionType: '환기 시스템 설치',
-    beforeData: [
-      { date: '2023-09', index: 40 },
-      { date: '2023-10', index: 38 },
-      { date: '2023-11', index: 35 }
-    ],
-    afterData: [
-      { date: '2023-11', index: 35 },
-      { date: '2023-12', index: 52 },
-      { date: '2024-01', index: 68 }
-    ],
-    improvement: 33
-  }
-]
-
 const BeforeAfterTracking = () => {
+  const [trackingData, setTrackingData] = useState<TrackingData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [interventionIds, setInterventionIds] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchCompletedInterventions = async () => {
+      try {
+        const response = await apiClient.getInterventions({ status: 'completed' })
+        if (response.success && response.data && response.data.length > 0) {
+          setInterventionIds(response.data.slice(0, 3).map((item: any) => item.intervention_id))
+        }
+      } catch (err) {
+        console.error('완료된 개입 목록 로드 실패:', err)
+      }
+    }
+
+    fetchCompletedInterventions()
+  }, [])
+
+  useEffect(() => {
+    const fetchEffects = async () => {
+      if (interventionIds.length === 0) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const effects = await Promise.all(
+          interventionIds.map(async (interventionId) => {
+            try {
+              const response = await apiClient.getInterventionEffect(interventionId, {
+                baseline_weeks: 4,
+                followup_weeks: 4
+              })
+              return response
+            } catch (err) {
+              console.error(`개입 효과 로드 실패 (${interventionId}):`, err)
+              return null
+            }
+          })
+        )
+
+        console.log('📊 BeforeAfterTracking 응답:', effects)
+        
+        const validEffects = effects.filter(e => e !== null && (e.success || e.effect))
+        
+        if (validEffects.length > 0) {
+          const formatted = validEffects.map((effect: any) => ({
+            location: effect.intervention?.unit_id || '',
+            interventionDate: effect.intervention?.start_date || '',
+            interventionType: effect.intervention?.intervention_type || '개입',
+            beforeData: effect.effect?.baseline_period?.data?.map((d: any) => ({
+              date: d.date?.split('-').slice(0, 2).join('-') || '',
+              index: d.uci_score || 0
+            })) || [],
+            afterData: effect.effect?.followup_period?.data?.map((d: any) => ({
+              date: d.date?.split('-').slice(0, 2).join('-') || '',
+              index: d.uci_score || 0
+            })) || [],
+            improvement: effect.effect?.improvement || 0
+          }))
+          setTrackingData(formatted)
+        } else {
+          setError('효과 데이터를 불러올 수 없습니다.')
+        }
+      } catch (err) {
+        console.error('개입 효과 데이터 로드 실패:', err)
+        setError('데이터를 불러오는 중 오류가 발생했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEffects()
+  }, [interventionIds])
+
+  if (loading) {
+    return (
+      <div className="before-after-tracking">
+        <div className="section-header">
+          <h2 className="heading-2">개입 전후 효과 추적</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="before-after-tracking">
+        <div className="section-header">
+          <h2 className="heading-2">개입 전후 효과 추적</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          {error}
+        </div>
+      </div>
+    )
+  }
+
+  if (trackingData.length === 0) {
+    return (
+      <div className="before-after-tracking">
+        <div className="section-header">
+          <h2 className="heading-2">개입 전후 효과 추적</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          데이터가 없습니다.
+        </div>
+      </div>
+    )
+  }
+
   const formatChartData = (data: TrackingData) => {
     const combined = [
       ...data.beforeData.map((d) => ({ ...d, type: '개입 전' })),
@@ -80,7 +148,7 @@ const BeforeAfterTracking = () => {
       </div>
 
       <div className="tracking-list">
-        {mockTrackingData.map((data, index) => (
+        {trackingData.map((data, index) => (
           <div key={index} className="tracking-item">
             <div className="tracking-header">
               <div>

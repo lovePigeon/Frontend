@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+import { apiClient } from '../../utils/api'
 import './SignalTrends.css'
 
 interface SignalTrend {
@@ -11,57 +13,91 @@ interface SignalTrend {
   note?: string
 }
 
-const mockSignalTrends: SignalTrend[] = [
-  {
-    district: '강남구',
-    trend: 'improving',
-    signals: {
-      human: 'decreasing',
-      population: 'stable'
-    },
-    description: '민원이 감소 추세이며 생활인구는 안정적입니다.',
-    note: '지속적인 개선이 이루어지고 있습니다.'
-  },
-  {
-    district: '마포구',
-    trend: 'improving',
-    signals: {
-      human: 'decreasing',
-      population: 'stable'
-    },
-    description: '민원이 감소하고 있으며 생활인구는 안정적입니다.',
-  },
-  {
-    district: '종로구',
-    trend: 'stable',
-    signals: {
-      human: 'stable',
-      population: 'stable'
-    },
-    description: '민원과 생활인구 모두 안정적인 상태입니다.',
-  },
-  {
-    district: '송파구',
-    trend: 'stable',
-    signals: {
-      human: 'stable',
-      population: 'decreasing'
-    },
-    description: '민원은 안정적이며 생활인구는 감소 추세입니다.',
-  },
-  {
-    district: '용산구',
-    trend: 'monitoring',
-    signals: {
-      human: 'increasing',
-      population: 'increasing'
-    },
-    description: '민원과 생활인구가 증가하고 있어 모니터링 중입니다.',
-    note: '관리 강화가 진행 중입니다.'
-  }
-]
-
 const SignalTrends = () => {
+  const [signalTrends, setSignalTrends] = useState<SignalTrend[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchSignalTrends = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const today = new Date().toISOString().split('T')[0]
+        
+        // 민원 데이터와 생활인구 데이터를 가져와서 지역별로 집계
+        const [humanSignalResponse, populationSignalResponse] = await Promise.all([
+          apiClient.getHumanSignal({ date: today, period: 'month' }),
+          apiClient.getPopulationSignal({ date: today, period: 'month' })
+        ])
+
+        console.log('📡 SignalTrends 응답:', { humanSignalResponse, populationSignalResponse })
+
+        // 응답 데이터를 SignalTrend 형식으로 변환
+        // 실제 응답 구조에 따라 조정 필요
+        const trends: SignalTrend[] = []
+        
+        // TODO: 백엔드 응답 구조에 맞게 데이터 변환 로직 구현 필요
+        // 현재는 빈 배열로 설정하여 "데이터가 없습니다" 메시지 표시
+        if (humanSignalResponse && (humanSignalResponse.success || Array.isArray(humanSignalResponse.trends))) {
+          // 실제 데이터 변환 로직 구현 필요
+          // 예: humanSignalResponse.trends를 지역별로 집계하여 SignalTrend 생성
+        }
+        
+        if (trends.length > 0) {
+          setSignalTrends(trends)
+        } else {
+          console.warn('⚠️ SignalTrends: 데이터 변환 로직 구현 필요. 응답:', { humanSignalResponse, populationSignalResponse })
+          setError('데이터 변환 로직이 구현되지 않았습니다.')
+        }
+      } catch (err) {
+        console.error('신호 추세 데이터 로드 실패:', err)
+        setError('데이터를 불러오는 중 오류가 발생했습니다.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSignalTrends()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="signal-trends">
+        <div className="section-header">
+          <h2 className="heading-2">지역별 신호 추세</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center' }}>로딩 중...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="signal-trends">
+        <div className="section-header">
+          <h2 className="heading-2">지역별 신호 추세</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          {error}
+        </div>
+      </div>
+    )
+  }
+
+  if (signalTrends.length === 0) {
+    return (
+      <div className="signal-trends">
+        <div className="section-header">
+          <h2 className="heading-2">지역별 신호 추세</h2>
+        </div>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-600)' }}>
+          데이터가 없습니다.
+        </div>
+      </div>
+    )
+  }
+
   const getTrendLabel = (trend: string) => {
     switch (trend) {
       case 'improving':
@@ -128,7 +164,7 @@ const SignalTrends = () => {
       </div>
 
       <div className="trends-grid">
-        {mockSignalTrends.map((trend, index) => (
+        {signalTrends.map((trend, index) => (
           <div key={index} className="trend-card">
             <div className="trend-header">
               <h3 className="trend-district">{trend.district}</h3>
@@ -181,4 +217,3 @@ const SignalTrends = () => {
 }
 
 export default SignalTrends
-
