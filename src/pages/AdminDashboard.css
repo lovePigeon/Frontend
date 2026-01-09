@@ -107,7 +107,9 @@
 
 .critical-action-card {
   display: flex;
+  flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
   gap: var(--spacing-md);
   padding: var(--spacing-sm) var(--spacing-md);
   background-color: var(--white);
@@ -117,6 +119,8 @@
   transition: all var(--transition-base);
   box-shadow: var(--shadow-sm);
   min-height: auto;
+  /* 다른 CSS 파일의 override 방지 */
+  flex-wrap: nowrap;
 }
 
 .critical-action-card:hover {
@@ -128,26 +132,39 @@
 .critical-action-card.priority-card {
   border-color: var(--chateau-green-400);
   background-color: var(--white);
+  /* 레이아웃 강제 고정 - 다른 CSS의 override 방지 */
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
 }
 
 .critical-action-card.recommendation-card {
   border-color: var(--chateau-green-500);
   background-color: var(--white);
+  /* 레이아웃 강제 고정 - 다른 CSS의 override 방지 */
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
 }
 
 .critical-action-icon {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
+  min-width: 32px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--chateau-green-600);
+  /* 레이아웃 고정 */
+  order: 1;
 }
 
 .critical-action-icon svg {
   width: 24px;
   height: 24px;
+  display: block;
 }
 
 .critical-action-icon.priority-icon {
@@ -164,6 +181,10 @@
   flex-direction: column;
   gap: 4px;
   min-width: 0;
+  /* 레이아웃 고정 */
+  order: 2;
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .critical-action-main {
@@ -232,6 +253,9 @@
   color: var(--chateau-green-600);
   font-weight: var(--font-weight-bold);
   transition: transform var(--transition-base);
+  /* 레이아웃 고정 */
+  order: 3;
+  margin-left: auto;
 }
 
 .critical-action-card:hover .critical-action-arrow {

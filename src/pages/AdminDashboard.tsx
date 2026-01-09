@@ -171,8 +171,8 @@ const AdminDashboard = () => {
                   </div>
                 </div>
                 <div className="critical-action-detail">
-                  <span className="critical-action-type">{criticalActions.topRecommendation.type}</span>
-                  <span className="critical-action-impact">{criticalActions.topRecommendation.impact}</span>
+                  <span className="critical-action-location">{criticalActions.topRecommendation.type}</span>
+                  <span className="critical-action-index">{criticalActions.topRecommendation.impact}</span>
                 </div>
               </div>
               <div className="critical-action-arrow">→</div>
