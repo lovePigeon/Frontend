@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react'
 import { ComposedChart, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+import { apiClient, getTodayDateString } from '../../utils/api'
 import './TimePatternAnalysis.css'
 
 interface TimePatternData {
@@ -50,7 +52,128 @@ const mockTimePatternData: TimePatternData[] = [
   }
 ]
 
+// API 응답 타입 정의 (추정 - 실제 API 응답 구조에 맞게 조정 필요)
+interface TimePatternApiResponse {
+  unit_id: string
+  hour_pattern?: Array<{ hour: number; complaints?: number; population?: number }>
+  day_pattern?: Array<{ day: string; complaints?: number }>
+  peak_hours?: number[]
+  recommended_action?: string
+}
+
+// API 응답을 TimePatternData로 변환하는 함수
+const mapApiResponseToTimePatternData = (apiItem: TimePatternApiResponse): TimePatternData => {
+  // API에서 unit_id로 위치 정보 조회 필요 (현재는 unit_id를 그대로 사용)
+  const location = apiItem.unit_id || '위치 정보 없음'
+  
+  // hour_pattern이 있으면 사용, 없으면 더미데이터 생성
+  const hourPattern = apiItem.hour_pattern 
+    ? apiItem.hour_pattern.map(h => ({
+        hour: h.hour,
+        complaints: h.complaints || 0,
+        population: h.population || 0,
+      }))
+    : Array.from({ length: 24 }, (_, i) => ({
+        hour: i,
+        complaints: 0,
+        population: 0,
+      }))
+
+  // day_pattern이 있으면 사용, 없으면 더미데이터 생성
+  const dayPattern = apiItem.day_pattern
+    ? apiItem.day_pattern.map(d => ({
+        day: d.day,
+        complaints: d.complaints || 0,
+      }))
+    : [
+        { day: '월', complaints: 0 },
+        { day: '화', complaints: 0 },
+        { day: '수', complaints: 0 },
+        { day: '목', complaints: 0 },
+        { day: '금', complaints: 0 },
+        { day: '토', complaints: 0 },
+        { day: '일', complaints: 0 },
+      ]
+
+  return {
+    location,
+    hourPattern,
+    dayPattern,
+    peakHours: apiItem.peak_hours || [],
+    recommendedAction: apiItem.recommended_action || '패턴 분석 중',
+  }
+}
+
 const TimePatternAnalysis = () => {
+  const [patternData, setPatternData] = useState<TimePatternData[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // API에서 데이터 가져오기
+  useEffect(() => {
+    const fetchTimePattern = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const date = getTodayDateString()
+        
+        // 우선순위 큐에서 상위 지역들의 unit_id를 가져와서 각각의 패턴 조회
+        // 현재는 우선순위 큐의 상위 2개 지역만 조회 (실제로는 더 많은 지역 조회 가능)
+        const priorityQueue = await apiClient.getPriorityQueue({ date, top_n: 2 }) as any[]
+        
+        if (Array.isArray(priorityQueue) && priorityQueue.length > 0) {
+          const patternPromises = priorityQueue.slice(0, 2).map(async (item) => {
+            try {
+              const pattern = await apiClient.getTimePattern(item.unit_id || item._id, { date }) as TimePatternApiResponse
+              return mapApiResponseToTimePatternData({ ...pattern, unit_id: item.unit_id || item.name || item._id })
+            } catch (err) {
+              console.warn(`⚠️ 시간 패턴 조회 실패 (${item.unit_id}):`, err)
+              return null
+            }
+          })
+          
+          const patterns = (await Promise.all(patternPromises)).filter((p): p is TimePatternData => p !== null)
+          
+          if (patterns.length > 0) {
+            setPatternData(patterns)
+          } else {
+            // API 응답이 비어있거나 형식이 다를 경우 더미데이터 사용
+            console.warn('⚠️ API 응답이 비어있거나 형식이 다릅니다. 더미데이터를 사용합니다.')
+            setPatternData(mockTimePatternData)
+          }
+        } else {
+          // 우선순위 큐가 비어있으면 더미데이터 사용
+          setPatternData(mockTimePatternData)
+        }
+      } catch (err) {
+        console.error('❌ 시간 패턴 분석 데이터 로딩 실패:', err)
+        setError(err instanceof Error ? err.message : '데이터를 불러오는 중 오류가 발생했습니다.')
+        // 에러 발생 시 더미데이터로 fallback
+        setPatternData(mockTimePatternData)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchTimePattern()
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="time-pattern-analysis">
+        <div className="section-header">
+          <h2 className="heading-2">시간대별 패턴 분석</h2>
+          <p className="body-small text-secondary mt-sm">
+            민원 발생 시간대와 생활인구 패턴을 분석하여 최적의 관리 시점을 제안합니다
+          </p>
+        </div>
+        <div className="loading-state">
+          <p className="body-medium text-secondary">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="time-pattern-analysis">
       <div className="section-header">
@@ -60,8 +183,16 @@ const TimePatternAnalysis = () => {
         </p>
       </div>
 
+      {error && (
+        <div className="error-state" style={{ padding: '16px', marginBottom: '16px', backgroundColor: 'var(--gray-100)', borderRadius: '4px' }}>
+          <p className="body-small" style={{ color: 'var(--chateau-green-600)' }}>
+            ⚠️ {error} (더미데이터로 표시 중)
+          </p>
+        </div>
+      )}
+
       <div className="pattern-list">
-        {mockTimePatternData.map((data, index) => (
+        {patternData.map((data, index) => (
           <div key={index} className="pattern-item">
             <div className="pattern-header">
               <h3 className="heading-4">{data.location}</h3>

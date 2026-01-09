@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import IndexCalculationModal from './IndexCalculationModal'
+import { apiClient, getTodayDateString } from '../../utils/api'
 import './PriorityQueue.css'
 
 interface InspectionItem {
@@ -341,11 +342,92 @@ const mockData: InspectionItem[] = [
   }
 ]
 
+// API 응답 타입 정의
+interface PriorityQueueApiResponse {
+  rank: number
+  unit_id: string
+  name: string
+  uci_score: number
+  uci_grade: string
+  why_summary: string
+  key_drivers: Array<{ signal: string; value: number }>
+}
+
+// API 응답을 InspectionItem으로 변환하는 함수
+const mapApiResponseToInspectionItem = (apiItem: PriorityQueueApiResponse, index: number): InspectionItem => {
+  // API 응답에서 기본 정보 추출
+  const baseItem: InspectionItem = {
+    id: apiItem.unit_id || `item-${index}`,
+    location: apiItem.name || '위치 정보 없음',
+    lat: 37.5665, // 기본값 (실제로는 unit_id로 geo 정보 조회 필요)
+    lng: 126.978,
+    comfortIndex: Math.round(apiItem.uci_score),
+    priority: apiItem.uci_grade === 'E' || apiItem.uci_grade === 'D' ? 'high' : 
+              apiItem.uci_grade === 'C' ? 'medium' : 'low',
+    humanSignals: {
+      complaints: 0, // API에서 제공되지 않음 - 더미데이터 유지
+      trend: 'stable',
+      recurrence: 0,
+    },
+    geoSignals: {
+      alleyStructure: '보통', // API에서 제공되지 않음
+      ventilation: '보통',
+      accessibility: '보통',
+      vulnerabilityScore: 5.0,
+    },
+    priorityReason: {
+      summary: apiItem.why_summary || '',
+      factors: apiItem.key_drivers?.map(d => d.signal) || [],
+      signalRiseRate: apiItem.key_drivers?.[0]?.value || 0,
+      structuralVulnerability: 5.0,
+    },
+  }
+  return baseItem
+}
+
 const PriorityQueue = () => {
-  const [items] = useState<InspectionItem[]>(mockData)
-  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(items[0]?.id)
+  const [items, setItems] = useState<InspectionItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined)
   const [showIndexModal, setShowIndexModal] = useState(false)
   const [selectedItemForModal, setSelectedItemForModal] = useState<InspectionItem | null>(null)
+
+  // API에서 데이터 가져오기
+  useEffect(() => {
+    const fetchPriorityQueue = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const date = getTodayDateString()
+        const response = await apiClient.getPriorityQueue({ date, top_n: 20 }) as PriorityQueueApiResponse[]
+        
+        if (Array.isArray(response) && response.length > 0) {
+          const mappedItems = response.map((item, index) => mapApiResponseToInspectionItem(item, index))
+          setItems(mappedItems)
+          // 첫 번째 항목 선택
+          if (mappedItems.length > 0) {
+            setSelectedLocationId(mappedItems[0].id)
+          }
+        } else {
+          // API 응답이 비어있거나 형식이 다를 경우 더미데이터 사용
+          console.warn('⚠️ API 응답이 비어있거나 형식이 다릅니다. 더미데이터를 사용합니다.')
+          setItems(mockData)
+          setSelectedLocationId(mockData[0]?.id)
+        }
+      } catch (err) {
+        console.error('❌ 우선순위 큐 데이터 로딩 실패:', err)
+        setError(err instanceof Error ? err.message : '데이터를 불러오는 중 오류가 발생했습니다.')
+        // 에러 발생 시 더미데이터로 fallback
+        setItems(mockData)
+        setSelectedLocationId(mockData[0]?.id)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPriorityQueue()
+  }, [])
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
@@ -393,6 +475,31 @@ const PriorityQueue = () => {
 
   const selectedItem = items.find(item => item.id === selectedLocationId)
 
+  if (loading) {
+    return (
+      <div className="priority-queue">
+        <div className="section-header priority-section-header">
+          <div className="section-header-content">
+            <div className="section-header-icon priority-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="heading-2 priority-heading">우선순위 검사 대기열</h2>
+              <p className="body-small text-secondary mt-sm">
+                도시 편의성 지수와 신호 분석을 기반으로 한 순위별 검사 목록
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="loading-state">
+          <p className="body-medium text-secondary">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="priority-queue">
       <div className="section-header priority-section-header">
@@ -413,6 +520,14 @@ const PriorityQueue = () => {
           <span className="badge-label">우선 처리 필요</span>
         </div>
       </div>
+
+      {error && (
+        <div className="error-state" style={{ padding: '16px', marginBottom: '16px', backgroundColor: 'var(--gray-100)', borderRadius: '4px' }}>
+          <p className="body-small" style={{ color: 'var(--chateau-green-600)' }}>
+            ⚠️ {error} (더미데이터로 표시 중)
+          </p>
+        </div>
+      )}
 
       <div className="queue-visualization">
         <div className="queue-cards">

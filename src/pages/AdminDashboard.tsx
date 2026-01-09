@@ -1,10 +1,11 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import PriorityQueue from '../components/admin/PriorityQueue'
 import ActionRecommendations from '../components/admin/ActionRecommendations'
 import BeforeAfterTracking from '../components/admin/BeforeAfterTracking'
 import TimePatternAnalysis from '../components/admin/TimePatternAnalysis'
 import BlindSpotDetection from '../components/admin/BlindSpotDetection'
 import SiteGuide, { GuideStep } from '../components/public/SiteGuide'
+import { apiClient, getTodayDateString } from '../utils/api'
 import './AdminDashboard.css'
 
 const AdminDashboard = () => {
@@ -31,24 +32,83 @@ const AdminDashboard = () => {
     { key: 'tracking' as const, label: '개입 전후 효과 추적' }
   ]
 
-  // 핵심 액션 요약 데이터 (실제로는 API에서 가져올 데이터)
-  const criticalActions = useMemo(() => {
-    const highPriorityCount = 2 // 실제로는 데이터에서 계산
-    const immediateActionsCount = 1 // 실제로는 데이터에서 계산
-    return {
-      highPriorityCount,
-      immediateActionsCount,
-      topPriority: {
-        location: '서울시 강남구 역삼동 123-45',
-        index: 32,
-        urgency: 'immediate'
-      },
-      topRecommendation: {
-        location: '서울시 강남구 역삼동 123-45',
-        type: '구조적 개선',
-        impact: '편의성 지수 30점 이상 향상 예상'
+  // 핵심 액션 요약 데이터
+  const [criticalActions, setCriticalActions] = useState({
+    highPriorityCount: 0,
+    immediateActionsCount: 0,
+    topPriority: {
+      location: '데이터 로딩 중...',
+      index: 0,
+      urgency: 'immediate' as const
+    },
+    topRecommendation: {
+      location: '데이터 로딩 중...',
+      type: '개입 권고',
+      impact: '데이터 로딩 중...'
+    }
+  })
+
+  // API에서 핵심 액션 요약 데이터 가져오기
+  useEffect(() => {
+    const fetchCriticalActions = async () => {
+      try {
+        const date = getTodayDateString()
+        
+        // 우선순위 큐와 액션 카드 동시 조회
+        const [priorityQueue, actionCards] = await Promise.all([
+          apiClient.getPriorityQueue({ date, top_n: 20 }).catch(() => []),
+          apiClient.getActionCards({ date }).catch(() => [])
+        ]) as [any[], any[]]
+
+        // 우선순위 큐에서 상위 항목 추출
+        const highPriorityItems = Array.isArray(priorityQueue) 
+          ? priorityQueue.filter((item: any) => item.uci_grade === 'E' || item.uci_grade === 'D')
+          : []
+        
+        // 액션 카드에서 즉시 개입 항목 추출
+        const immediateActions = Array.isArray(actionCards)
+          ? actionCards.filter((card: any) => 
+              card.tags?.some((tag: string) => tag.includes('immediate') || tag.includes('urgent'))
+            )
+          : []
+
+        const topPriority = Array.isArray(priorityQueue) && priorityQueue.length > 0
+          ? {
+              location: priorityQueue[0].name || priorityQueue[0].unit_id || '위치 정보 없음',
+              index: Math.round(priorityQueue[0].uci_score || 0),
+              urgency: 'immediate' as const
+            }
+          : {
+              location: '데이터 없음',
+              index: 0,
+              urgency: 'immediate' as const
+            }
+
+        const topRecommendation = Array.isArray(actionCards) && actionCards.length > 0
+          ? {
+              location: actionCards[0].unit_id || '위치 정보 없음',
+              type: actionCards[0].recommended_actions?.[0] || actionCards[0].title || '개입 권고',
+              impact: `신뢰도: ${((actionCards[0].confidence || 0.5) * 100).toFixed(0)}%`
+            }
+          : {
+              location: '데이터 없음',
+              type: '개입 권고',
+              impact: '데이터 없음'
+            }
+
+        setCriticalActions({
+          highPriorityCount: highPriorityItems.length,
+          immediateActionsCount: immediateActions.length,
+          topPriority,
+          topRecommendation
+        })
+      } catch (err) {
+        console.error('❌ 핵심 액션 요약 데이터 로딩 실패:', err)
+        // 에러 발생 시 기본값 유지
       }
     }
+
+    fetchCriticalActions()
   }, [])
 
   const guideSteps: GuideStep[] = [
