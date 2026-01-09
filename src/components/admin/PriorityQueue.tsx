@@ -1,7 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import IndexCalculationModal from './IndexCalculationModal'
+import apiClient, { getTodayDateString, getDateRangeForRetry } from '../../utils/api'
 import './PriorityQueue.css'
 
+// API 응답 타입
+interface PriorityQueueItem {
+  rank: number
+  unit_id: string
+  name: string
+  uci_score: number
+  uci_grade: 'A' | 'B' | 'C' | 'D' | 'E'
+  why_summary: string
+  key_drivers?: Array<{
+    signal: string
+    value: number
+  }>
+}
+
+// 컴포넌트 내부에서 사용하는 타입 (기존 구조 유지)
 interface InspectionItem {
   id: string
   location: string
@@ -72,280 +88,179 @@ interface InspectionItem {
   lastInspection?: string
 }
 
-const mockData: InspectionItem[] = [
-  {
-    id: '1',
-    location: '서울시 강남구 역삼동 123-45',
-    lat: 37.5012,
-    lng: 127.0396,
-    comfortIndex: 32,
-    priority: 'high',
-    humanSignals: {
-      complaints: 24,
-      trend: 'increasing',
-      recurrence: 8,
-      timePattern: {
-        peakHours: [20, 21, 22, 23],
-        weekdayPattern: { 월: 3, 화: 4, 수: 5, 목: 4, 금: 3, 토: 2, 일: 3 }
-      }
-    },
-    geoSignals: {
-      alleyStructure: '좁음',
-      ventilation: '불량',
-      accessibility: '제한적',
-      vulnerabilityScore: 8.5
-    },
-    populationSignals: {
-      daytime: 1200,
-      nighttime: 850,
-      changeRate: 15.2,
-      trend: 'increasing'
-    },
-    pigeonSignals: {
-      detected: true,
-      intensity: 'high',
-      activityPattern: {
-        peakHours: [6, 7, 18, 19],
-        frequency: 45
-      },
-      interpretation: '비둘기 활동이 증가하여 환경 변화의 생태적 신호로 해석됩니다. 민원 데이터와 교차 검증 필요.'
-    },
-    confounders: {
-      feeding: false,
-      seasonal: false,
-      commercial: true,
-      weather: false,
-      events: false
-    },
-    crossValidation: {
-      humanGeoMatch: 85,
-      humanPopulationMatch: 78,
-      allSignalsMatch: 82,
-      blindSpotRisk: 'low'
-    },
-    priorityReason: {
-      summary: '야간 민원 집중, 구조 취약, 생활인구 증가, 비둘기 신호 강함',
-      factors: ['야간 민원 급증', '골목 구조 취약', '야간 생활인구 증가', '비둘기 활동 증가'],
-      signalRiseRate: 8.2,
-      structuralVulnerability: 8.5
-    },
-    dataSource: {
-      human: { source: '서울시 공개데이터', reliability: 'high', lastUpdate: '2024-01-28' },
-      geo: { source: 'LX 공간정보', reliability: 'high', lastUpdate: '2024-01-25' },
-      population: { source: '서울시 생활인구', reliability: 'high', lastUpdate: '2024-01-27' },
-      pigeon: { source: 'YOLO 탐지 (선택적)', reliability: 'medium', lastUpdate: '2024-01-26' }
-    },
-    expertValidation: {
-      verified: true,
-      confoundersReviewed: true,
-      source: '국립생태원 자문 반영'
-    },
-    lastInspection: '2024-01-15'
-  },
-  {
-    id: '2',
-    location: '서울시 마포구 상암동 67-89',
-    lat: 37.5663,
-    lng: 126.9019,
-    comfortIndex: 45,
-    priority: 'high',
-    humanSignals: {
-      complaints: 18,
-      trend: 'increasing',
-      recurrence: 6,
-      timePattern: {
-        peakHours: [19, 20, 21],
-        weekdayPattern: { 월: 2, 화: 3, 수: 3, 목: 3, 금: 2, 토: 2, 일: 3 }
-      }
-    },
-    geoSignals: {
-      alleyStructure: '보통',
-      ventilation: '보통',
-      accessibility: '양호',
-      vulnerabilityScore: 5.2
-    },
-    populationSignals: {
-      daytime: 980,
-      nighttime: 620,
-      changeRate: 8.5,
-      trend: 'increasing'
-    },
-    pigeonSignals: {
-      detected: false,
-      intensity: null,
-      interpretation: '비둘기 신호 없음. Core 지표(Human/Geo/Population)만으로 우선순위 결정됨.'
-    },
-    confounders: {
-      feeding: true,
-      seasonal: false,
-      commercial: false,
-      weather: false,
-      events: false
-    },
-    crossValidation: {
-      humanGeoMatch: 72,
-      humanPopulationMatch: 68,
-      allSignalsMatch: 70,
-      blindSpotRisk: 'medium'
-    },
-    priorityReason: {
-      summary: '민원 증가 추세, 급이 영향 가능성, 생활인구 변화',
-      factors: ['민원 증가 추세', '급이 영향 가능', '생활인구 변화'],
-      signalRiseRate: 6.5,
-      structuralVulnerability: 5.2
-    },
-    dataSource: {
-      human: { source: '서울시 공개데이터', reliability: 'high', lastUpdate: '2024-01-28' },
-      geo: { source: 'LX 공간정보', reliability: 'high', lastUpdate: '2024-01-25' },
-      population: { source: '서울시 생활인구', reliability: 'high', lastUpdate: '2024-01-27' }
-    },
-    expertValidation: {
-      verified: true,
-      confoundersReviewed: true,
-      source: '국립생태원 자문 반영'
-    },
-    lastInspection: '2024-01-20'
-  },
-  {
-    id: '3',
-    location: '서울시 종로구 명륜동 12-34',
-    lat: 37.5825,
-    lng: 126.9982,
-    comfortIndex: 58,
-    priority: 'medium',
-    humanSignals: {
-      complaints: 12,
-      trend: 'stable',
-      recurrence: 4,
-      timePattern: {
-        peakHours: [14, 15, 16],
-        weekdayPattern: { 월: 2, 화: 2, 수: 2, 목: 2, 금: 2, 토: 1, 일: 1 }
-      }
-    },
-    geoSignals: {
-      alleyStructure: '넓음',
-      ventilation: '양호',
-      accessibility: '양호',
-      vulnerabilityScore: 3.5
-    },
-    populationSignals: {
-      daytime: 750,
-      nighttime: 450,
-      changeRate: -2.1,
-      trend: 'stable'
-    },
-    pigeonSignals: {
-      detected: true,
-      intensity: 'low',
-      activityPattern: {
-        peakHours: [7, 8],
-        frequency: 12
-      },
-      interpretation: '비둘기 활동이 낮아 환경 변화 신호가 약함. 지속 모니터링 권장.'
-    },
-    confounders: {
-      feeding: false,
-      seasonal: false,
-      commercial: false,
-      weather: false,
-      events: false
-    },
-    crossValidation: {
-      humanGeoMatch: 88,
-      humanPopulationMatch: 85,
-      allSignalsMatch: 86,
-      blindSpotRisk: 'low'
-    },
-    priorityReason: {
-      summary: '안정적 상태 유지, 구조 양호',
-      factors: ['민원 안정적', '구조 양호', '생활인구 안정'],
-      signalRiseRate: 1.2,
-      structuralVulnerability: 3.5
-    },
-    dataSource: {
-      human: { source: '서울시 공개데이터', reliability: 'high', lastUpdate: '2024-01-28' },
-      geo: { source: 'LX 공간정보', reliability: 'high', lastUpdate: '2024-01-25' },
-      population: { source: '서울시 생활인구', reliability: 'high', lastUpdate: '2024-01-27' },
-      pigeon: { source: 'YOLO 탐지 (선택적)', reliability: 'medium', lastUpdate: '2024-01-26' }
-    },
-    expertValidation: {
-      verified: true,
-      confoundersReviewed: true,
-      source: '국립생태원 자문 반영'
-    },
-    lastInspection: '2024-01-10'
-  },
-  {
-    id: '4',
-    location: '서울시 송파구 잠실동 56-78',
-    lat: 37.5133,
-    lng: 127.1028,
-    comfortIndex: 72,
-    priority: 'low',
-    humanSignals: {
-      complaints: 5,
-      trend: 'decreasing',
-      recurrence: 2,
-      timePattern: {
-        peakHours: [12, 13],
-        weekdayPattern: { 월: 1, 화: 1, 수: 1, 목: 1, 금: 1, 토: 0, 일: 0 }
-      }
-    },
-    geoSignals: {
-      alleyStructure: '넓음',
-      ventilation: '양호',
-      accessibility: '양호',
-      vulnerabilityScore: 2.1
-    },
-    populationSignals: {
-      daytime: 650,
-      nighttime: 380,
-      changeRate: -5.2,
-      trend: 'decreasing'
-    },
-    pigeonSignals: {
-      detected: false,
-      intensity: null,
-      interpretation: '비둘기 신호 없음. Core 지표만으로 충분히 판단 가능.'
-    },
-    confounders: {
-      feeding: false,
-      seasonal: false,
-      commercial: false,
-      weather: false,
-      events: false
-    },
-    crossValidation: {
-      humanGeoMatch: 92,
-      humanPopulationMatch: 90,
-      allSignalsMatch: 91,
-      blindSpotRisk: 'low'
-    },
-    priorityReason: {
-      summary: '민원 감소, 구조 양호, 생활인구 감소',
-      factors: ['민원 감소 추세', '구조 양호', '생활인구 감소'],
-      signalRiseRate: -3.5,
-      structuralVulnerability: 2.1
-    },
-    dataSource: {
-      human: { source: '서울시 공개데이터', reliability: 'high', lastUpdate: '2024-01-28' },
-      geo: { source: 'LX 공간정보', reliability: 'high', lastUpdate: '2024-01-25' },
-      population: { source: '서울시 생활인구', reliability: 'high', lastUpdate: '2024-01-27' }
-    },
-    expertValidation: {
-      verified: true,
-      confoundersReviewed: true,
-      source: '국립생태원 자문 반영'
-    },
-    lastInspection: '2024-01-25'
-  }
-]
-
 const PriorityQueue = () => {
-  const [items] = useState<InspectionItem[]>(mockData)
-  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(items[0]?.id)
+  const [items, setItems] = useState<InspectionItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined)
   const [showIndexModal, setShowIndexModal] = useState(false)
   const [selectedItemForModal, setSelectedItemForModal] = useState<InspectionItem | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString())
+
+  // API 응답을 InspectionItem으로 변환
+  const transformApiResponse = (apiItems: PriorityQueueItem[]): InspectionItem[] => {
+    return apiItems.map((item) => {
+      // UCI 점수에 따라 우선순위 결정 (높을수록 나쁨)
+      let priority: 'high' | 'medium' | 'low' = 'low'
+      if (item.uci_score >= 70) priority = 'high'
+      else if (item.uci_score >= 50) priority = 'medium'
+
+      // key_drivers에서 요인 추출
+      const factors = item.key_drivers?.map(driver => {
+        const signalNames: { [key: string]: string } = {
+          'complaint_odor_growth': '악취 민원 증가',
+          'night_ratio': '야간 집중도',
+          'complaint_trash_growth': '쓰레기 민원 증가',
+          'population_increase': '생활인구 증가'
+        }
+        return signalNames[driver.signal] || driver.signal
+      }) || []
+
+      return {
+        id: item.unit_id,
+        location: item.name,
+        lat: 0, // API에서 제공되지 않으면 0으로 설정
+        lng: 0,
+        comfortIndex: item.uci_score,
+        priority,
+        humanSignals: {
+          complaints: 0, // API에서 제공되지 않음
+          trend: 'increasing',
+          recurrence: 0
+        },
+        geoSignals: {
+          alleyStructure: '정보 없음',
+          ventilation: '정보 없음',
+          accessibility: '정보 없음',
+          vulnerabilityScore: 0
+        },
+        priorityReason: {
+          summary: item.why_summary,
+          factors,
+          signalRiseRate: 0,
+          structuralVulnerability: 0
+        }
+      }
+    })
+  }
+
+  // 우선순위 큐 데이터 로드
+  useEffect(() => {
+    const loadPriorityQueue = async () => {
+      setLoading(true)
+      setError(null)
+
+      // 최근 7일 재시도 로직
+      const dateRange = getDateRangeForRetry(7)
+      let lastError: Error | null = null
+      let connectionFailed = false
+
+      for (const date of dateRange) {
+        try {
+          console.log(`📅 우선순위 큐 조회 시도: ${date}`)
+          const response = await apiClient.getPriorityQueue({
+            date,
+            top_n: 20
+          })
+
+          // 응답 구조 디버깅
+          console.log(`📦 API 응답 원본 (날짜: ${date}):`, response)
+          console.log(`📦 응답 타입:`, typeof response)
+          console.log(`📦 배열 여부:`, Array.isArray(response))
+          if (response && typeof response === 'object') {
+            console.log(`📦 응답 키:`, Object.keys(response))
+            console.log(`📦 응답 전체:`, JSON.stringify(response, null, 2))
+          }
+
+          // 응답이 배열인지 확인
+          let queueItems: PriorityQueueItem[] = []
+          if (Array.isArray(response)) {
+            queueItems = response
+            console.log(`✅ 배열 형식 응답 감지: ${queueItems.length}개 항목`)
+          } else if (response && typeof response === 'object' && 'data' in response) {
+            // success/data 구조인 경우
+            queueItems = (response as any).data || []
+            console.log(`✅ success/data 구조 응답 감지: ${queueItems.length}개 항목`)
+          } else if (response && typeof response === 'object' && Array.isArray((response as any).items)) {
+            queueItems = (response as any).items
+            console.log(`✅ items 배열 구조 응답 감지: ${queueItems.length}개 항목`)
+          } else {
+            console.warn(`⚠️ 알 수 없는 응답 구조:`, response)
+          }
+
+          console.log(`📊 파싱된 queueItems:`, queueItems)
+          console.log(`📊 queueItems.length:`, queueItems.length)
+
+          if (queueItems.length > 0) {
+            console.log(`✅ 우선순위 큐 데이터 로드 성공: ${queueItems.length}개 항목 (날짜: ${date})`)
+            const transformedItems = transformApiResponse(queueItems)
+            setItems(transformedItems)
+            setSelectedDate(date)
+            if (transformedItems.length > 0) {
+              setSelectedLocationId(transformedItems[0].id)
+            }
+            setLoading(false)
+            return
+          } else {
+            console.log(`⚠️ 데이터 없음 (날짜: ${date}), 다음 날짜 시도...`)
+            console.log(`⚠️ 응답이 빈 배열이거나 파싱 실패`)
+          }
+        } catch (err) {
+          console.error(`❌ 날짜 ${date} 조회 실패:`, err)
+          
+          // 연결 실패를 감지하면 즉시 중단
+          if (err instanceof Error && (err as any).isConnectionError) {
+            connectionFailed = true
+            lastError = err
+            console.error('🔴 백엔드 서버 연결 실패 - 재시도 중단')
+            break // 즉시 루프 종료
+          }
+          
+          // 연결 실패 메시지를 포함하는 경우도 감지
+          if (err instanceof Error && err.message.includes('연결 실패')) {
+            connectionFailed = true
+            lastError = err
+            console.error('🔴 백엔드 서버 연결 실패 - 재시도 중단')
+            break
+          }
+          
+          lastError = err instanceof Error ? err : new Error(String(err))
+          
+          // 400 에러는 날짜 형식 문제일 수 있으므로 다음 날짜 시도
+          if (err instanceof Error && err.message.includes('400')) {
+            continue
+          }
+          
+          // 500 에러는 서버 문제이므로 재시도 의미 없음
+          if (err instanceof Error && err.message.includes('500')) {
+            break
+          }
+        }
+      }
+
+      // 에러 메시지 설정
+      if (connectionFailed && lastError) {
+        setError(
+          lastError.message || 
+          '백엔드 서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.'
+        )
+      } else if (lastError) {
+        setError(lastError.message || '우선순위 큐 데이터를 불러올 수 없습니다.')
+      } else {
+        setError('최근 7일간 데이터를 찾을 수 없습니다.')
+      }
+      setLoading(false)
+    }
+
+    loadPriorityQueue()
+  }, [])
+
+  // 선택된 항목이 변경되면 상세 정보 로드 (필요한 경우)
+  useEffect(() => {
+    if (selectedLocationId && items.length > 0) {
+      // 상세 정보는 필요시 추가로 로드할 수 있음
+    }
+  }, [selectedLocationId, items])
 
   const getPriorityLabel = (priority: string) => {
     switch (priority) {
@@ -393,12 +308,69 @@ const PriorityQueue = () => {
 
   const selectedItem = items.find(item => item.id === selectedLocationId)
 
+  if (loading) {
+    return (
+      <div className="priority-queue">
+        <div className="section-header">
+          <h2 className="heading-2">우선순위 검사 대기열</h2>
+          <p className="body-small text-secondary mt-sm">
+            도시 편의성 지수와 신호 분석을 기반으로 한 순위별 검사 목록
+          </p>
+        </div>
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <p>데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="priority-queue">
+        <div className="section-header">
+          <h2 className="heading-2">우선순위 검사 대기열</h2>
+          <p className="body-small text-secondary mt-sm">
+            도시 편의성 지수와 신호 분석을 기반으로 한 순위별 검사 목록
+          </p>
+        </div>
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--error-color, #dc2626)' }}>❌ {error}</p>
+          <p className="body-small text-secondary mt-sm">
+            백엔드 서버가 실행 중인지 확인하고, 데이터가 존재하는지 확인해주세요.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="priority-queue">
+        <div className="section-header">
+          <h2 className="heading-2">우선순위 검사 대기열</h2>
+          <p className="body-small text-secondary mt-sm">
+            도시 편의성 지수와 신호 분석을 기반으로 한 순위별 검사 목록
+          </p>
+        </div>
+        <div style={{ padding: '2rem', textAlign: 'center' }}>
+          <p className="body-large text-secondary">데이터가 없습니다.</p>
+          <p className="body-small text-secondary mt-sm">
+            선택된 날짜({selectedDate})에 대한 우선순위 큐 데이터가 없습니다.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="priority-queue">
       <div className="section-header">
         <h2 className="heading-2">우선순위 검사 대기열</h2>
         <p className="body-small text-secondary mt-sm">
           도시 편의성 지수와 신호 분석을 기반으로 한 순위별 검사 목록
+          {selectedDate && (
+            <span style={{ marginLeft: '0.5rem' }}>(날짜: {selectedDate})</span>
+          )}
         </p>
       </div>
 
