@@ -5,19 +5,19 @@
 .guide-content {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-3xl);
+  gap: var(--spacing-2xl);
 }
 
 .guide-steps {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-md);
 }
 
 .guide-step {
   display: flex;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-xl);
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
   background-color: var(--bg-secondary);
   border-radius: 8px;
 }
@@ -60,18 +60,18 @@
 
 .guide-actions {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--spacing-xl);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-md);
 }
 
 .action-card {
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   background-color: var(--bg-primary);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 
 .action-title {
@@ -151,7 +151,7 @@
 .guide-note {
   display: flex;
   gap: var(--spacing-md);
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   background-color: var(--chateau-green-50);
   border-radius: 8px;
   border: 1px solid var(--chateau-green-200);

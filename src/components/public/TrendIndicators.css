@@ -5,22 +5,22 @@
 .trend-content {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-2xl);
+  gap: var(--spacing-xl);
 }
 
 .trend-summary {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: var(--spacing-xl);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--spacing-md);
 }
 
 .summary-card {
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   background-color: var(--bg-secondary);
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
 }
 
 .summary-label {
@@ -57,7 +57,7 @@
 
 .trend-chart-container {
   width: 100%;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   background-color: var(--bg-primary);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
