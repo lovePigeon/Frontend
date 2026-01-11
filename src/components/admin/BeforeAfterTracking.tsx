@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { apiClient, getTodayDateString } from '../../utils/api'
+import { apiClient } from '../../utils/api'
 import './BeforeAfterTracking.css'
 
 interface TrackingData {
