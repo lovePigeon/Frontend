@@ -392,6 +392,7 @@ const PriorityQueue = () => {
   const [selectedLocationId, setSelectedLocationId] = useState<string | undefined>(undefined)
   const [showIndexModal, setShowIndexModal] = useState(false)
   const [selectedItemForModal, setSelectedItemForModal] = useState<InspectionItem | null>(null)
+  const [visibleCount, setVisibleCount] = useState(5) // 초기 표시 개수
 
   // API에서 데이터 가져오기
   useEffect(() => {
@@ -402,8 +403,25 @@ const PriorityQueue = () => {
         const date = getTodayDateString()
         const response = await apiClient.getPriorityQueue({ date, top_n: 20 }) as PriorityQueueApiResponse[]
         
+        // 백엔드에서 받은 원본 데이터 로그 출력
+        console.log('📊 [우선순위 검사 대기열] 백엔드 API 응답:', {
+          endpoint: '/api/v1/priority-queue',
+          date,
+          responseCount: Array.isArray(response) ? response.length : 0,
+          rawData: response,
+          sampleItem: Array.isArray(response) && response.length > 0 ? response[0] : null
+        })
+        
         if (Array.isArray(response) && response.length > 0) {
           const mappedItems = response.map((item, index) => mapApiResponseToInspectionItem(item, index))
+          
+          // 매핑된 데이터 로그 출력
+          console.log('✅ [우선순위 검사 대기열] 매핑 완료:', {
+            mappedCount: mappedItems.length,
+            mappedItems: mappedItems,
+            sampleMappedItem: mappedItems[0] || null
+          })
+          
           setItems(mappedItems)
           // 첫 번째 항목 선택
           if (mappedItems.length > 0) {
@@ -473,6 +491,19 @@ const PriorityQueue = () => {
     setShowIndexModal(true)
   }
 
+  const handleLoadMore = () => {
+    const nextCount = Math.min(visibleCount + 5, items.length)
+    setVisibleCount(nextCount)
+  }
+
+  const handleCollapse = () => {
+    setVisibleCount(5)
+  }
+
+  const isExpanded = visibleCount > 5
+  const visibleItems = items.slice(0, visibleCount)
+  const remainingCount = items.length - visibleCount
+
   const selectedItem = items.find(item => item.id === selectedLocationId)
 
   if (loading) {
@@ -530,8 +561,8 @@ const PriorityQueue = () => {
       )}
 
       <div className="queue-visualization">
-        <div className="queue-cards">
-          {items.map((item, index) => {
+        <div className="queue-cards" id="priority-queue-list">
+          {visibleItems.map((item, index) => {
             const locationParts = item.location.split(' ')
             const district = locationParts.length > 2 ? locationParts[2] : locationParts[1] || item.location
             return (
@@ -554,6 +585,38 @@ const PriorityQueue = () => {
             )
           })}
         </div>
+        
+        {/* 더보기/접기 버튼 */}
+        {items.length > 5 && (
+          <div className="queue-toggle-container">
+            <button
+              className="queue-toggle-button"
+              onClick={isExpanded ? handleCollapse : handleLoadMore}
+              aria-expanded={isExpanded}
+              aria-controls="priority-queue-list"
+              type="button"
+            >
+              <span className={`queue-toggle-icon ${isExpanded ? 'rotated' : ''}`} aria-hidden="true">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M4 6 L8 10 L12 6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+              <span className="queue-toggle-text">
+                {isExpanded ? '접기' : `더보기 (${remainingCount}개 남음)`}
+              </span>
+            </button>
+            <span className="queue-count-indicator">
+              Top {visibleCount} / 총 {items.length}
+            </span>
+          </div>
+        )}
       </div>
 
       {selectedItem && (

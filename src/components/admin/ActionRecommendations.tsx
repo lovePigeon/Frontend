@@ -160,8 +160,25 @@ const ActionRecommendations = () => {
         const date = getTodayDateString()
         const response = await apiClient.getActionCards({ date }) as ActionCardApiResponse[]
         
+        // 백엔드에서 받은 원본 데이터 로그 출력
+        console.log('📋 [개입 권고사항] 백엔드 API 응답:', {
+          endpoint: '/api/v1/action-cards',
+          date,
+          responseCount: Array.isArray(response) ? response.length : 0,
+          rawData: response,
+          sampleItem: Array.isArray(response) && response.length > 0 ? response[0] : null
+        })
+        
         if (Array.isArray(response) && response.length > 0) {
           const mappedRecommendations = response.map((item, index) => mapApiResponseToRecommendation(item, index))
+          
+          // 매핑된 데이터 로그 출력
+          console.log('✅ [개입 권고사항] 매핑 완료:', {
+            mappedCount: mappedRecommendations.length,
+            mappedRecommendations: mappedRecommendations,
+            sampleMappedItem: mappedRecommendations[0] || null
+          })
+          
           setRecommendations(mappedRecommendations)
         } else {
           // API 응답이 비어있거나 형식이 다를 경우 더미데이터 사용

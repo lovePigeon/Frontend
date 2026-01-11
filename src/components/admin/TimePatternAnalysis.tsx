@@ -121,10 +121,28 @@ const TimePatternAnalysis = () => {
         // 현재는 우선순위 큐의 상위 2개 지역만 조회 (실제로는 더 많은 지역 조회 가능)
         const priorityQueue = await apiClient.getPriorityQueue({ date, top_n: 2 }) as any[]
         
+        // 우선순위 큐 응답 로그 출력
+        console.log('📊 [시간대별 패턴 분석] 우선순위 큐 응답:', {
+          endpoint: '/api/v1/priority-queue',
+          date,
+          queueCount: Array.isArray(priorityQueue) ? priorityQueue.length : 0,
+          queueData: priorityQueue
+        })
+        
         if (Array.isArray(priorityQueue) && priorityQueue.length > 0) {
           const patternPromises = priorityQueue.slice(0, 2).map(async (item) => {
             try {
-              const pattern = await apiClient.getTimePattern(item.unit_id || item._id, { date }) as TimePatternApiResponse
+              const unitId = item.unit_id || item._id
+              const pattern = await apiClient.getTimePattern(unitId, { date }) as TimePatternApiResponse
+              
+              // 각 지역별 시간 패턴 API 응답 로그 출력
+              console.log(`📈 [시간대별 패턴 분석] 지역별 패턴 응답 (${unitId}):`, {
+                endpoint: `/api/v1/dashboard/time-pattern`,
+                unitId,
+                date,
+                rawData: pattern
+              })
+              
               return mapApiResponseToTimePatternData({ ...pattern, unit_id: item.unit_id || item.name || item._id })
             } catch (err) {
               console.warn(`⚠️ 시간 패턴 조회 실패 (${item.unit_id}):`, err)
@@ -133,6 +151,13 @@ const TimePatternAnalysis = () => {
           })
           
           const patterns = (await Promise.all(patternPromises)).filter((p): p is TimePatternData => p !== null)
+          
+          // 매핑된 패턴 데이터 로그 출력
+          console.log('✅ [시간대별 패턴 분석] 매핑 완료:', {
+            patternCount: patterns.length,
+            patterns: patterns,
+            samplePattern: patterns[0] || null
+          })
           
           if (patterns.length > 0) {
             setPatternData(patterns)

@@ -59,6 +59,24 @@ const AdminDashboard = () => {
           apiClient.getPriorityQueue({ date, top_n: 20 }).catch(() => []),
           apiClient.getActionCards({ date }).catch(() => [])
         ]) as [any[], any[]]
+        
+        // 핵심 액션 요약용 API 응답 로그 출력
+        console.log('📊 [관리자 대시보드] 핵심 액션 요약 API 응답:', {
+          priorityQueue: {
+            endpoint: '/api/v1/priority-queue',
+            date,
+            count: Array.isArray(priorityQueue) ? priorityQueue.length : 0,
+            data: priorityQueue,
+            sampleItem: Array.isArray(priorityQueue) && priorityQueue.length > 0 ? priorityQueue[0] : null
+          },
+          actionCards: {
+            endpoint: '/api/v1/action-cards',
+            date,
+            count: Array.isArray(actionCards) ? actionCards.length : 0,
+            data: actionCards,
+            sampleItem: Array.isArray(actionCards) && actionCards.length > 0 ? actionCards[0] : null
+          }
+        })
 
         // 우선순위 큐에서 상위 항목 추출
         const highPriorityItems = Array.isArray(priorityQueue) 
@@ -96,12 +114,21 @@ const AdminDashboard = () => {
               impact: '데이터 없음'
             }
 
-        setCriticalActions({
+        const finalCriticalActions = {
           highPriorityCount: highPriorityItems.length,
           immediateActionsCount: immediateActions.length,
           topPriority,
           topRecommendation
+        }
+        
+        // 계산된 핵심 액션 요약 로그 출력
+        console.log('✅ [관리자 대시보드] 핵심 액션 요약 계산 완료:', {
+          highPriorityItems: highPriorityItems,
+          immediateActions: immediateActions,
+          finalCriticalActions: finalCriticalActions
         })
+        
+        setCriticalActions(finalCriticalActions)
       } catch (err) {
         console.error('❌ 핵심 액션 요약 데이터 로딩 실패:', err)
         // 에러 발생 시 기본값 유지
