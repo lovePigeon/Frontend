@@ -338,21 +338,25 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* 시급도/우선순위에 따른 색상 */
 .priority-high {
-  background-color: var(--chateau-green-200);
-  color: var(--chateau-green-800);
+  /* 높은 우선순위 → Red/Orange (시급도 높음) */
+  background-color: var(--color-severity-immediate-background);
+  color: var(--color-severity-immediate-text);
   font-weight: var(--font-weight-semibold);
   box-shadow: var(--shadow-sm);
 }
 
 .priority-medium {
-  background-color: var(--chateau-green-50);
-  color: var(--chateau-green-600);
+  /* 중간 우선순위 → Orange/Yellow (시급도 중간) */
+  background-color: var(--color-severity-short-background);
+  color: var(--color-severity-short-text);
 }
 
 .priority-low {
-  background-color: var(--gray-100);
-  color: var(--gray-600);
+  /* 낮은 우선순위 → Green (안정) */
+  background-color: var(--chateau-green-50);
+  color: var(--chateau-green-600);
 }
 
 .index-badge {
@@ -371,12 +375,50 @@
   padding-top: var(--spacing-sm);
 }
 
+/* 핵심 요약 정보 섹션 */
+.summary-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  margin-bottom: var(--spacing-md);
+}
+
+.summary-stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.summary-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) 0;
+}
+
+.summary-stat-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.summary-stat-value {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
 /* 신호 섹션들을 가로로 배치하는 컨테이너 */
 .signals-container {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: var(--spacing-md);
   margin-bottom: var(--spacing-sm);
+  align-items: start; /* 높이 강제 제거 */
 }
 
 .detail-group {
@@ -387,7 +429,6 @@
 
 /* 신호 섹션들에 대한 스타일 */
 .signals-container .detail-group {
-  flex: 1;
   min-width: 0;
   padding: var(--spacing-md);
   background-color: var(--bg-secondary);
@@ -399,6 +440,20 @@
 .signals-container .detail-group:hover {
   border-color: var(--chateau-green-300);
   box-shadow: var(--shadow-sm);
+}
+
+/* Trends 간소화 스타일 */
+.trends-compact {
+  margin-top: var(--spacing-xs);
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.trend-compact-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
 }
 
 /* 우선순위 결정 근거와 교란요인을 가로로 배치 */
@@ -579,16 +634,17 @@
 }
 
 .confounder-tag.warning {
-  background-color: var(--color-info-background);
-  color: var(--color-info-text);
-  border: 1px solid var(--color-info-border);
+  /* 정보성 요소는 Green 기반 Neutral-Accent */
+  background-color: var(--chateau-green-100);
+  color: var(--chateau-green-700);
+  border: 1px solid var(--chateau-green-300);
 }
 
-/* 정보성 강조 요소 - data-variant="info" */
+/* 정보성 강조 요소 - data-variant="info" → Green 기반 Neutral-Accent */
 [data-variant="info"] {
-  background-color: var(--color-info-background);
-  color: var(--color-info-text);
-  border: 1px solid var(--color-info-border);
+  background-color: var(--chateau-green-50);
+  color: var(--chateau-green-700);
+  border: 1px solid var(--chateau-green-300);
 }
 
 .confounder-note {
@@ -645,11 +701,12 @@
 }
 
 .blindspot-warning {
+  /* 사각지대 위험 높음 → Red/Orange (상태 악화/부정적 지표) */
   margin-top: var(--spacing-sm);
   padding: var(--spacing-sm);
-  background-color: var(--color-info-background);
-  color: var(--color-info-text);
-  border: 1px solid var(--color-info-border);
+  background-color: var(--color-severity-short-background);
+  color: var(--color-severity-short-text);
+  border: 1px solid var(--color-severity-short-border);
   border-radius: 4px;
   font-size: var(--font-size-sm);
 }
@@ -670,6 +727,30 @@
   background-color: var(--chateau-green-50);
   border-color: var(--chateau-green-300);
   color: var(--chateau-green-600);
+}
+
+/* 그래프 섹션 */
+.charts-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chart-section-item {
+  padding: var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+}
+
+.chart-section-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
 }
 
 .expanded-details {
@@ -780,7 +861,15 @@
     grid-template-columns: 1fr;
   }
 
+  .summary-section {
+    grid-template-columns: 1fr;
+  }
+
   .signals-container {
+    grid-template-columns: 1fr;
+  }
+
+  .charts-section {
     grid-template-columns: 1fr;
   }
 
