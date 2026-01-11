@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- 도시 건물 실루엣 -->
+  <rect x="10" y="40" width="15" height="50" fill="#4A90E2" />
+  <rect x="30" y="30" width="15" height="60" fill="#5BA3F5" />
+  <rect x="50" y="50" width="15" height="40" fill="#4A90E2" />
+  <rect x="70" y="25" width="15" height="65" fill="#6BB6FF" />
+  <rect x="85" y="55" width="15" height="35" fill="#5BA3F5" />
+  
+  <!-- 창문들 -->
+  <rect x="13" y="48" width="3" height="3" fill="#FFD700" />
+  <rect x="18" y="48" width="3" height="3" fill="#FFD700" />
+  <rect x="13" y="58" width="3" height="3" fill="#FFD700" />
+  <rect x="18" y="58" width="3" height="3" fill="#FFD700" />
+  
+  <rect x="33" y="38" width="3" height="3" fill="#FFD700" />
+  <rect x="38" y="38" width="3" height="3" fill="#FFD700" />
+  <rect x="33" y="48" width="3" height="3" fill="#FFD700" />
+  <rect x="38" y="48" width="3" height="3" fill="#FFD700" />
+  
+  <rect x="73" y="33" width="3" height="3" fill="#FFD700" />
+  <rect x="78" y="33" width="3" height="3" fill="#FFD700" />
+  <rect x="73" y="43" width="3" height="3" fill="#FFD700" />
+  <rect x="78" y="43" width="3" height="3" fill="#FFD700" />
+</svg>
