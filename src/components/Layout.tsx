@@ -11,7 +11,7 @@ const Layout = () => {
         <div className="container">
           <div className="header-content">
             <Link to="/" className="logo">
-              <span className="logo-text">도시 편의성 분석</span>
+              <span className="logo-text">PigeonSense</span>
             </Link>
             <nav className="nav">
               <Link
