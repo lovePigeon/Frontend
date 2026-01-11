@@ -369,7 +369,6 @@
   flex-direction: column;
   gap: var(--spacing-md);
   padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--border-subtle);
 }
 
 /* 신호 섹션들을 가로로 배치하는 컨테이너 */

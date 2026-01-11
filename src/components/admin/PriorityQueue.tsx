@@ -660,11 +660,6 @@ const PriorityQueue = () => {
                 <div className="detail-group priority-reason">
                   <h4 className="detail-label">우선순위 결정 근거</h4>
                   <p className="priority-summary">{selectedItem.priorityReason.summary}</p>
-                  <div className="priority-factors">
-                    {selectedItem.priorityReason.factors.map((factor, idx) => (
-                      <span key={idx} className="factor-tag">{factor}</span>
-                    ))}
-                  </div>
                 </div>
               )}
 
