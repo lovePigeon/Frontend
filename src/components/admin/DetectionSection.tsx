@@ -351,7 +351,8 @@ const DetectionSection = ({ initialTab }: DetectionSectionProps) => {
   const [selectedDate, setSelectedDate] = useState<string | undefined>(undefined)
   
   // 캐러셀 상태
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [cardsPerPage, setCardsPerPage] = useState(2)
 
   // URL query 업데이트
   useEffect(() => {
@@ -441,9 +442,28 @@ const DetectionSection = ({ initialTab }: DetectionSectionProps) => {
     fetchAnomalies()
   }, [activeTab])
 
-  // 탭 전환 시 캐러셀 인덱스 리셋
+
+  // 반응형 카드 수 계산
   useEffect(() => {
-    setCurrentIndex(0)
+    const updateCardsPerPage = () => {
+      const width = window.innerWidth
+      if (width >= 1024) {
+        setCardsPerPage(2) // 데스크탑: 2개
+      } else if (width >= 768) {
+        setCardsPerPage(2) // 태블릿: 가능하면 2개
+      } else {
+        setCardsPerPage(1) // 모바일: 1개
+      }
+    }
+    
+    updateCardsPerPage()
+    window.addEventListener('resize', updateCardsPerPage)
+    return () => window.removeEventListener('resize', updateCardsPerPage)
+  }, [])
+
+  // 탭 전환 시 페이지 리셋
+  useEffect(() => {
+    setCurrentPage(0)
   }, [activeTab])
 
   // 탭 전환 핸들러 (키보드 접근성)
@@ -466,34 +486,37 @@ const DetectionSection = ({ initialTab }: DetectionSectionProps) => {
     }
   }
   
-  // 현재 탭의 데이터 개수
+  // 캐러셀 네비게이션
   const currentDataCount = activeTab === 'blindspot' ? blindSpots.length : anomalies.length
-  // 반응형: 모바일에서는 1개, 데스크톱에서는 2개
-  const [cardsPerPage, setCardsPerPage] = useState(2)
+  const totalPages = Math.ceil(currentDataCount / cardsPerPage)
   
+  const handlePrevPage = () => {
+    setCurrentPage(prev => Math.max(0, prev - 1))
+  }
+  
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))
+  }
+  
+  const canGoPrev = currentPage > 0
+  const canGoNext = currentPage < totalPages - 1
+  
+  // 키보드 네비게이션 (캐러셀)
   useEffect(() => {
-    const updateCardsPerPage = () => {
-      setCardsPerPage(window.innerWidth <= 1024 ? 1 : 2)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft' && canGoPrev) {
+        e.preventDefault()
+        setCurrentPage(prev => Math.max(0, prev - 1))
+      } else if (e.key === 'ArrowRight' && canGoNext) {
+        e.preventDefault()
+        setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))
+      }
     }
     
-    updateCardsPerPage()
-    window.addEventListener('resize', updateCardsPerPage)
-    return () => window.removeEventListener('resize', updateCardsPerPage)
-  }, [])
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [canGoPrev, canGoNext, totalPages])
   
-  const maxIndex = Math.max(0, currentDataCount - cardsPerPage)
-  
-  // 캐러셀 네비게이션
-  const handlePrev = () => {
-    setCurrentIndex(prev => Math.max(0, prev - cardsPerPage))
-  }
-  
-  const handleNext = () => {
-    setCurrentIndex(prev => Math.min(maxIndex, prev + cardsPerPage))
-  }
-  
-  const canGoPrev = currentIndex > 0
-  const canGoNext = currentIndex < maxIndex
 
   const loading = activeTab === 'blindspot' ? blindSpotLoading : anomalyLoading
   const error = activeTab === 'blindspot' ? blindSpotError : anomalyError
@@ -610,11 +633,12 @@ const DetectionSection = ({ initialTab }: DetectionSectionProps) => {
               </div>
             ) : (
               <div className="detection-carousel-container">
+                {/* 네비게이션 버튼 */}
                 {canGoPrev && (
                   <button
                     className="carousel-nav-button carousel-nav-prev"
-                    onClick={handlePrev}
-                    aria-label="이전 카드"
+                    onClick={handlePrevPage}
+                    aria-label="이전 페이지"
                   >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M15 18l-6-6 6-6"/>
@@ -622,35 +646,42 @@ const DetectionSection = ({ initialTab }: DetectionSectionProps) => {
                   </button>
                 )}
                 
-                <div className="detection-carousel-wrapper">
+                {/* 캐러셀 뷰포트 */}
+                <div className="detection-carousel-viewport">
                   <div 
-                    className="detection-list"
+                    className="detection-carousel-track"
                     style={{
-                      transform: `translateX(calc(-${currentIndex} * (100% / ${cardsPerPage})))`,
-                      transition: 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                      transform: `translateX(-${currentPage * 100}%)`,
+                      transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
                     }}
                   >
-                    {activeTab === 'blindspot' ? (
-                      <BlindSpotCards 
-                        blindSpots={blindSpots}
-                      />
-                    ) : (
-                      <AnomalyCards
-                        anomalies={anomalies}
-                        onAnomalyClick={(anomaly) => {
-                          setSelectedUnitId(anomaly.unit_id)
-                          setSelectedDate(anomaly.date)
-                        }}
-                      />
-                    )}
+                    {Array.from({ length: totalPages }).map((_, pageIndex) => (
+                      <div key={pageIndex} className="detection-carousel-page">
+                        <div className="detection-list">
+                          {activeTab === 'blindspot' ? (
+                            <BlindSpotCards 
+                              blindSpots={blindSpots.slice(pageIndex * cardsPerPage, (pageIndex + 1) * cardsPerPage)}
+                            />
+                          ) : (
+                            <AnomalyCards
+                              anomalies={anomalies.slice(pageIndex * cardsPerPage, (pageIndex + 1) * cardsPerPage)}
+                              onAnomalyClick={(anomaly) => {
+                                setSelectedUnitId(anomaly.unit_id)
+                                setSelectedDate(anomaly.date)
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
                 
                 {canGoNext && (
                   <button
                     className="carousel-nav-button carousel-nav-next"
-                    onClick={handleNext}
-                    aria-label="다음 카드"
+                    onClick={handleNextPage}
+                    aria-label="다음 페이지"
                   >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M9 18l6-6-6-6"/>
@@ -658,11 +689,11 @@ const DetectionSection = ({ initialTab }: DetectionSectionProps) => {
                   </button>
                 )}
                 
-                {/* 인디케이터 */}
-                {currentDataCount > cardsPerPage && (
+                {/* 페이지 인디케이터 */}
+                {totalPages > 1 && (
                   <div className="carousel-indicator">
                     <span className="carousel-indicator-text">
-                      {Math.floor(currentIndex / cardsPerPage) + 1} / {Math.ceil(currentDataCount / cardsPerPage)}
+                      {currentPage + 1} / {totalPages}
                     </span>
                   </div>
                 )}
@@ -846,8 +877,6 @@ const AnomalyCards = ({ anomalies, onAnomalyClick }: AnomalyCardsProps) => {
         <div 
           key={anomaly.unit_id} 
           className="detection-item anomaly-item"
-          style={{ cursor: 'pointer' }}
-          onClick={() => onAnomalyClick(anomaly)}
         >
           <div className="detection-header">
             <div>
@@ -918,6 +947,21 @@ const AnomalyCards = ({ anomalies, onAnomalyClick }: AnomalyCardsProps) => {
               )}
             </div>
           )}
+
+          <div className="anomaly-card-footer">
+            <button
+              className="detail-view-button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onAnomalyClick(anomaly)
+              }}
+            >
+              상세보기
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </button>
+          </div>
         </div>
       ))}
     </>
