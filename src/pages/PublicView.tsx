@@ -6,6 +6,7 @@ import ImprovementStatus from '../components/public/ImprovementStatus'
 import ReportingGuide from '../components/public/ReportingGuide'
 import SiteGuide, { GuideStep } from '../components/public/SiteGuide'
 import UCIInfoModal from '../components/UCIInfoModal'
+import { useScrollSpy } from '../hooks/useScrollSpy'
 import './PublicView.css'
 
 const PublicView = () => {
@@ -18,6 +19,9 @@ const PublicView = () => {
     improvement: useRef<HTMLElement>(null),
     reporting: useRef<HTMLElement>(null)
   }
+
+  // Scroll-spy로 현재 활성 섹션 추적
+  const activeSection = useScrollSpy({ sections, threshold: 0.25 })
 
   const scrollToSection = (sectionKey: keyof typeof sections) => {
     const section = sections[sectionKey].current
@@ -122,7 +126,7 @@ const PublicView = () => {
             {menuItems.map((item) => (
               <button
                 key={item.key}
-                className="nav-menu-item"
+                className={`nav-menu-item ${activeSection === item.key ? 'active' : ''}`}
                 onClick={() => scrollToSection(item.key)}
               >
                 {item.label}

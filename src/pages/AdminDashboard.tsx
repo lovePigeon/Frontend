@@ -8,6 +8,7 @@ import DetectionSection from '../components/admin/DetectionSection'
 import SiteGuide, { GuideStep } from '../components/public/SiteGuide'
 import UCIInfoModal from '../components/UCIInfoModal'
 import { apiClient, getTodayDateString } from '../utils/api'
+import { useScrollSpy } from '../hooks/useScrollSpy'
 import './AdminDashboard.css'
 
 const AdminDashboard = () => {
@@ -19,6 +20,9 @@ const AdminDashboard = () => {
     recommendations: useRef<HTMLElement>(null),
     tracking: useRef<HTMLElement>(null)
   }
+
+  // Scroll-spy로 현재 활성 섹션 추적
+  const activeSection = useScrollSpy({ sections, threshold: 0.25 })
 
   const scrollToSection = (sectionKey: keyof typeof sections, tab?: 'blindspot' | 'anomaly') => {
     const section = sections[sectionKey].current
@@ -35,8 +39,8 @@ const AdminDashboard = () => {
   }
 
   const menuItems = [
-    { key: 'priority' as const, label: '우선순위 검사 대기열', highlight: true },
-    { key: 'recommendations' as const, label: '개입 권고사항', highlight: true },
+    { key: 'priority' as const, label: '우선순위 검사 대기열' },
+    { key: 'recommendations' as const, label: '개입 권고사항' },
     { key: 'detection' as const, label: '사각지대 탐지', tab: 'blindspot' as const },
     { key: 'detection' as const, label: '이상 탐지 결과', tab: 'anomaly' as const },
     { key: 'timepattern' as const, label: '시간대별 패턴 분석' },
@@ -290,15 +294,22 @@ const AdminDashboard = () => {
 
         <nav className="dashboard-nav">
           <div className="nav-menu">
-            {menuItems.map((item, index) => (
-              <button
-                key={`${item.key}-${index}`}
-                className={`nav-menu-item ${item.highlight ? 'highlight' : ''}`}
-                onClick={() => scrollToSection(item.key, (item as any).tab)}
-              >
-                {item.label}
-              </button>
-            ))}
+            {menuItems.map((item, index) => {
+              // detection 섹션의 경우, 현재 탭에 따라 활성화 여부 결정
+              const isActive = item.key === 'detection'
+                ? activeSection === 'detection'
+                : activeSection === item.key
+
+              return (
+                <button
+                  key={`${item.key}-${index}`}
+                  className={`nav-menu-item ${isActive ? 'active' : ''}`}
+                  onClick={() => scrollToSection(item.key, (item as any).tab)}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
           </div>
         </nav>
 

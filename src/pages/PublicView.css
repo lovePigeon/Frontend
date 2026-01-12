@@ -95,6 +95,18 @@
   background-color: var(--chateau-green-50);
 }
 
+.nav-menu-item.active {
+  color: var(--chateau-green-700);
+  font-weight: var(--font-weight-semibold);
+  background-color: var(--chateau-green-100);
+  border: 1px solid var(--chateau-green-300);
+}
+
+.nav-menu-item.active:hover {
+  background-color: var(--chateau-green-200);
+  border-color: var(--chateau-green-500);
+}
+
 .nav-menu-item:active {
   transform: scale(0.98);
 }
