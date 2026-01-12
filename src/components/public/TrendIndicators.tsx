@@ -67,7 +67,7 @@ const TrendIndicators = ({ unitId = '11110' }: TrendIndicatorsProps) => {
         }
         
         // 예측 데이터 추가
-        forecastData.forEach((forecast, idx) => {
+        forecastData.forEach((forecast) => {
           const forecastDate = new Date(forecast.date)
           const dateStr = `${forecastDate.getMonth() + 1}/${forecastDate.getDate()}`
           chartData.push({
@@ -194,8 +194,6 @@ const TrendIndicators = ({ unitId = '11110' }: TrendIndicatorsProps) => {
   const changeRate = parseFloat(analyticsData.trend.change_rate || '0')
   const changeType = analyticsData.trend.direction === 'increasing' ? 'positive' : 
                      analyticsData.trend.direction === 'decreasing' ? 'negative' : 'neutral'
-  const changeIcon = analyticsData.trend.direction === 'increasing' ? '▲' : 
-                     analyticsData.trend.direction === 'decreasing' ? '▼' : '—'
   
   // 데이터 품질 경고
   const dataQualityWarning = analyticsData.data_quality === 'insufficient' ? 
