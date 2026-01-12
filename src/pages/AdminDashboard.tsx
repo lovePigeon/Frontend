@@ -4,6 +4,7 @@ import ActionRecommendations from '../components/admin/ActionRecommendations'
 import BeforeAfterTracking from '../components/admin/BeforeAfterTracking'
 import TimePatternAnalysis from '../components/admin/TimePatternAnalysis'
 import BlindSpotDetection from '../components/admin/BlindSpotDetection'
+import AnomalyDetection from '../components/admin/AnomalyDetection'
 import SiteGuide, { GuideStep } from '../components/public/SiteGuide'
 import UCIInfoModal from '../components/UCIInfoModal'
 import { apiClient, getTodayDateString } from '../utils/api'
@@ -13,6 +14,7 @@ const AdminDashboard = () => {
   const sections = {
     priority: useRef<HTMLElement>(null),
     blindspot: useRef<HTMLElement>(null),
+    anomaly: useRef<HTMLElement>(null),
     timepattern: useRef<HTMLElement>(null),
     recommendations: useRef<HTMLElement>(null),
     tracking: useRef<HTMLElement>(null)
@@ -29,6 +31,7 @@ const AdminDashboard = () => {
     { key: 'priority' as const, label: '우선순위 검사 대기열', highlight: true },
     { key: 'recommendations' as const, label: '개입 권고사항', highlight: true },
     { key: 'blindspot' as const, label: '사각지대 탐지' },
+    { key: 'anomaly' as const, label: '이상 탐지 결과' },
     { key: 'timepattern' as const, label: '시간대별 패턴 분석' },
     { key: 'tracking' as const, label: '개입 전후 효과 추적' }
   ]
@@ -303,6 +306,10 @@ const AdminDashboard = () => {
 
           <section ref={sections.blindspot} id="blindspot" className="dashboard-section">
             <BlindSpotDetection />
+          </section>
+
+          <section ref={sections.anomaly} id="anomaly" className="dashboard-section">
+            <AnomalyDetection />
           </section>
 
           <section ref={sections.timepattern} id="timepattern" className="dashboard-section">

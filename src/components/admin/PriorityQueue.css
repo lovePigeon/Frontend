@@ -529,6 +529,15 @@
   font-weight: var(--font-weight-medium);
 }
 
+.anomaly-badge {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background-color: var(--color-severity-immediate-bg);
+  color: var(--color-severity-immediate-text);
+  border-radius: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
 .data-source-badge {
   margin-left: var(--spacing-xs);
   font-size: var(--font-size-xs);
