@@ -196,11 +196,34 @@ const BeforeAfterTracking = () => {
   }, [])
 
   const formatChartData = (data: TrackingData) => {
-    const combined = [
-      ...data.beforeData.map((d) => ({ ...d, type: '개입 전' })),
-      ...data.afterData.map((d) => ({ ...d, type: '개입 후' }))
+    // 개입일을 기준으로 데이터 분리
+    const interventionDate = data.interventionDate.substring(0, 7) // YYYY-MM 형식
+    
+    // 개입 전 데이터 (개입일 포함)
+    const beforeData = [
+      ...data.beforeData,
+      // 개입일 시점의 데이터를 개입 전에도 포함 (연결을 위해)
+      ...data.afterData.filter(d => d.date === interventionDate).map(d => ({ ...d, isInterventionPoint: true }))
+    ].map((d) => ({ ...d, type: 'before' as const }))
+    
+    // 개입 후 데이터 (개입일 포함)
+    const afterData = data.afterData.map((d) => ({ ...d, type: 'after' as const }))
+    
+    // 전체 데이터 (범례용)
+    return [...beforeData, ...afterData].sort((a, b) => a.date.localeCompare(b.date))
+  }
+  
+  const getBeforeData = (data: TrackingData) => {
+    const interventionDate = data.interventionDate.substring(0, 7)
+    return [
+      ...data.beforeData,
+      // 개입일 시점의 데이터를 개입 전에도 포함
+      ...data.afterData.filter(d => d.date === interventionDate)
     ]
-    return combined
+  }
+  
+  const getAfterData = (data: TrackingData) => {
+    return data.afterData
   }
 
   if (loading) {
@@ -261,7 +284,7 @@ const BeforeAfterTracking = () => {
 
             <div className="tracking-chart">
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={formatChartData(data)}>
+                <LineChart>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     stroke="var(--gray-200)"
@@ -285,10 +308,22 @@ const BeforeAfterTracking = () => {
                   <Line
                     type="monotone"
                     dataKey="index"
+                    data={getBeforeData(data)}
+                    stroke="var(--gray-400)"
+                    strokeWidth={2}
+                    dot={{ fill: 'var(--gray-400)', r: 4 }}
+                    activeDot={{ r: 6 }}
+                    name="개입 전"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="index"
+                    data={getAfterData(data)}
                     stroke="var(--chateau-green-600)"
                     strokeWidth={2}
                     dot={{ fill: 'var(--chateau-green-600)', r: 4 }}
                     activeDot={{ r: 6 }}
+                    name="개입 후"
                   />
                 </LineChart>
               </ResponsiveContainer>
